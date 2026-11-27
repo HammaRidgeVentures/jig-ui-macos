@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>Jig Screen</string>
+  <key>CFBundleDisplayName</key><string>Jig Screen</string>
+  <key>CFBundleIdentifier</key><string>com.hammaridgeventures.jig-screen</string>
+  <key>CFBundleExecutable</key><string>JigScreen</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>@VERSION@</string>
+  <key>CFBundleVersion</key><string>@VERSION@</string>
+  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <!-- A menu bar app: no Dock icon. -->
+  <key>LSUIElement</key><true/>
+  <key>NSPrincipalClass</key><string>NSApplication</string>
+  <key>NSHighResolutionCapable</key><true/>
+  <!-- The status can come over plain http from a Mac on the local network or the tailnet. Any other address needs https. -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key><true/>
+    <key>NSExceptionDomains</key>
+    <dict>
+      <key>ts.net</key>
+      <dict>
+        <key>NSIncludesSubdomains</key><true/>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><true/>
+      </dict>
+    </dict>
+  </dict>
+  <key>NSLocalNetworkUsageDescription</key><string>Jig Screen reads the agent status from the address you gave it.</string>
+  <key>NSDesktopFolderUsageDescription</key><string>Jig Screen shows the photos in the folder you chose.</string>
+  <key>NSDocumentsFolderUsageDescription</key><string>Jig Screen shows the photos in the folder you chose.</string>
+  <key>NSDownloadsFolderUsageDescription</key><string>Jig Screen shows the photos in the folder you chose.</string>
+</dict>
+</plist>

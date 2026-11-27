@@ -1,0 +1,33 @@
+{
+  "updatedAt": "2026-11-27T19:00:00Z",
+  "items": [
+    { "id": "session:a1", "title": "Ship the new price page to production?", "kind": "approval", "state": "waiting_user", "agent": "shop", "startedAt": null, "waitingSince": "2026-11-27T18:18:00Z", "completedAt": null },
+    { "id": "acme/shop#212", "title": "Which of the two refund emails do we send?", "kind": "question", "state": "waiting_user", "agent": null, "startedAt": null, "waitingSince": "2026-11-27T18:47:00Z", "completedAt": null },
+    { "id": "session:c3", "title": "Claude needs your permission to use Bash", "kind": "approval", "state": "waiting_user", "agent": "docs", "startedAt": null, "waitingSince": "2026-11-27T18:56:30Z", "completedAt": null },
+    { "id": "acme/site#77", "title": "Pick a hero photo for the landing page", "kind": "question", "state": "waiting_user", "agent": null, "startedAt": null, "waitingSince": "2026-11-27T18:58:00Z", "completedAt": null },
+
+    { "id": "acme/shop#208", "title": "Fix the cart total when a coupon is removed", "kind": "task", "state": "working", "agent": "shop 2", "startedAt": "2026-11-27T18:36:00Z", "waitingSince": null, "completedAt": null },
+    { "id": "acme/site#81", "title": "Speed up the pricing page", "kind": "task", "state": "working", "agent": "site", "startedAt": "2026-11-27T17:52:00Z", "waitingSince": null, "completedAt": null },
+    { "id": "session:e5", "title": "Nightly import of supplier feeds", "kind": "task", "state": "working", "agent": "feeds", "startedAt": "2026-11-27T18:20:00Z", "waitingSince": null, "completedAt": null },
+
+    { "id": "acme/shop#214", "title": "Add a test for the tax rounding", "kind": "task", "state": "queued", "agent": null, "startedAt": null, "waitingSince": null, "completedAt": null },
+    { "id": "acme/shop#215", "title": "Rename the order export columns", "kind": "task", "state": "queued", "agent": null, "startedAt": null, "waitingSince": null, "completedAt": null },
+    { "id": "acme/site#83", "title": "Fix the footer links on mobile", "kind": "task", "state": "queued", "agent": null, "startedAt": null, "waitingSince": null, "completedAt": null },
+    { "id": "acme/site#84", "title": "Write the changelog page", "kind": "task", "state": "queued", "agent": null, "startedAt": null, "waitingSince": null, "completedAt": null },
+    { "id": "acme/site#85", "title": "Compress the gallery images", "kind": "task", "state": "queued", "agent": null, "startedAt": null, "waitingSince": null, "completedAt": null },
+
+    { "id": "acme/shop#205", "title": "Show the shipping estimate earlier", "kind": "task", "state": "done", "agent": null, "startedAt": null, "waitingSince": null, "completedAt": "2026-11-27T18:57:00Z" },
+    { "id": "acme/shop#206", "title": "Stop the double welcome email", "kind": "task", "state": "done", "agent": null, "startedAt": null, "waitingSince": null, "completedAt": "2026-11-27T18:58:10Z" },
+    { "id": "acme/site#79", "title": "Fix a typo on the about page", "kind": "task", "state": "done", "agent": null, "startedAt": null, "waitingSince": null, "completedAt": "2026-11-27T18:59:20Z" },
+    { "id": "acme/site#70", "title": "Move the blog to the new layout", "kind": "task", "state": "done", "agent": null, "startedAt": null, "waitingSince": null, "completedAt": "2026-11-27T09:00:00Z" },
+
+    { "id": "acme/shop#199", "title": "Migrate the old invoices", "kind": "task", "state": "failed", "agent": null, "startedAt": null, "waitingSince": null, "completedAt": "2026-11-27T18:30:00Z" }
+  ],
+  "agents": [
+    { "name": "shop", "currentItemId": "session:a1", "lastHeartbeat": "2026-11-27T18:18:00Z" },
+    { "name": "shop 2", "currentItemId": "acme/shop#208", "lastHeartbeat": "2026-11-27T18:59:48Z" },
+    { "name": "site", "currentItemId": "acme/site#81", "lastHeartbeat": "2026-11-27T18:59:10Z" },
+    { "name": "feeds", "currentItemId": "session:e5", "lastHeartbeat": "2026-11-27T18:44:00Z" },
+    { "name": "docs", "currentItemId": "session:c3", "lastHeartbeat": "2026-11-27T18:56:30Z" }
+  ]
+}
