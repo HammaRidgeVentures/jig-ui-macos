@@ -84,12 +84,13 @@ struct StatusPanel: View {
 
     @ViewBuilder
     private func working(_ board: Board) -> some View {
-        // A full waiting list leaves room for four agents.
-        let shown = board.workers.prefix(board.waitingCount > 0 ? 4 : 5)
+        // More agents, less room each: full rows, then two-line rows, then a grid of cells.
+        let density = board.density
+        let shown = Array(board.workers.prefix(density.limit))
         let rate = log.rate(at: now)
-        VStack(alignment: .leading, spacing: size(12)) {
+        VStack(alignment: .leading, spacing: size(density == .full ? 12 : 10)) {
             HStack(alignment: .firstTextBaseline) {
-                heading("Working")
+                heading(board.workers.count > 1 ? "Working · \(board.workers.count)" : "Working")
                 Spacer()
                 if rate > 0 {
                     Text("\(rate) tool calls a min")
@@ -103,8 +104,18 @@ struct StatusPanel: View {
                     .font(.system(size: size(16)))
                     .foregroundStyle(Ink.secondary)
             }
-            ForEach(Array(shown)) { worker in
-                WorkerRow(worker: worker, bars: log.bars(for: worker.name, at: now), now: now, scale: scale)
+            if density == .compact {
+                let columns = [GridItem(.flexible(), spacing: size(16), alignment: .leading),
+                               GridItem(.flexible(), alignment: .leading)]
+                LazyVGrid(columns: columns, alignment: .leading, spacing: size(11)) {
+                    ForEach(shown) { worker in
+                        WorkerRow(worker: worker, bars: log.bars(for: worker.name, at: now), now: now, scale: scale, density: density)
+                    }
+                }
+            } else {
+                ForEach(shown) { worker in
+                    WorkerRow(worker: worker, bars: log.bars(for: worker.name, at: now), now: now, scale: scale, density: density)
+                }
             }
             if board.workers.count > shown.count {
                 Text("+ \(board.workers.count - shown.count) more")

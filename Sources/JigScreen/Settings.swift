@@ -5,6 +5,8 @@ import Combine
 enum DataSource: Equatable {
     /// The sample file that ships with the app.
     case sample
+    /// The sample with 12 agents at work, to see the screen with a full house.
+    case crowd
     /// This Mac's own Jig: the app runs `jig status --json`.
     case jig
     case file(String)
@@ -13,6 +15,7 @@ enum DataSource: Equatable {
     var label: String {
         switch self {
         case .sample: return "Sample data"
+        case .crowd: return "Sample data, 12 agents"
         case .jig: return "Jig on this Mac"
         case .file(let path): return (path as NSString).lastPathComponent
         case .url(let url): return url
@@ -57,6 +60,7 @@ final class Settings: ObservableObject {
         idleMinutes = minutes > 0 ? minutes : 5
         switch (defaults.string(forKey: "sourceKind"), defaults.string(forKey: "sourceValue")) {
         case ("jig", _): source = .jig
+        case ("crowd", _): source = .crowd
         case ("file", let path?): source = .file(path)
         case ("url", let url?): source = .url(url)
         default: source = .sample
@@ -89,6 +93,7 @@ final class Settings: ObservableObject {
         switch source {
         case .sample: defaults.set("sample", forKey: "sourceKind"); defaults.removeObject(forKey: "sourceValue")
         case .jig: defaults.set("jig", forKey: "sourceKind"); defaults.removeObject(forKey: "sourceValue")
+        case .crowd: defaults.set("crowd", forKey: "sourceKind"); defaults.removeObject(forKey: "sourceValue")
         case .file(let path): defaults.set("file", forKey: "sourceKind"); defaults.set(path, forKey: "sourceValue")
         case .url(let url): defaults.set("url", forKey: "sourceKind"); defaults.set(url, forKey: "sourceValue")
         }

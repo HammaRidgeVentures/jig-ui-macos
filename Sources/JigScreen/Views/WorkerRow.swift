@@ -1,19 +1,92 @@
 import SwiftUI
 import JigScreenCore
 
-/// One agent under "Working": a live pulse, its name and time, its task, and a strip of its last 12 minutes.
+/// One agent under "Working": a live pulse, its name and time, and a strip of its last 12 minutes.
+/// It has three sizes. With few agents a row has room for the task and what the agent does now.
+/// With many, a row shrinks to what you can read from far off: is it alive, and for how long.
 struct WorkerRow: View {
     let worker: Board.Worker
     /// Tool calls a minute, oldest first.
     let bars: [Int]
     let now: Date
     let scale: CGFloat
+    var density: Board.Density = .full
 
     private func size(_ points: CGFloat) -> CGFloat { points * scale }
 
     var body: some View {
+        switch density {
+        case .full: full
+        case .medium: medium
+        case .compact: compact
+        }
+    }
+
+    /// Two lines: name and time, then the strip and the task.
+    private var medium: some View {
         let pulse = worker.pulse(at: now)
-        HStack(alignment: .top, spacing: size(10)) {
+        return HStack(alignment: .top, spacing: size(8)) {
+            PulseOrb(pulse: pulse, scale: scale * 0.86, offset: PulseOrb.offset(for: worker.name))
+                .padding(.top, size(-1))
+            VStack(alignment: .leading, spacing: size(3)) {
+                HStack(alignment: .firstTextBaseline, spacing: size(8)) {
+                    Text(worker.name)
+                        .font(.system(size: size(16), weight: .semibold))
+                        .foregroundStyle(pulse == .quiet ? Ink.secondary : Ink.primary)
+                        .lineLimit(1)
+                    Spacer(minLength: size(6))
+                    time(pulse, points: 15)
+                }
+                HStack(alignment: .center, spacing: size(9)) {
+                    ActivityStrip(bars: bars, pulse: pulse, scale: scale, height: 13)
+                    Text(worker.task)
+                        .font(.system(size: size(14)))
+                        .foregroundStyle(Ink.secondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
+
+    /// A cell for the two-column grid: the pulse, the name, the time, and the strip under the name.
+    private var compact: some View {
+        let pulse = worker.pulse(at: now)
+        return VStack(alignment: .leading, spacing: size(2)) {
+            HStack(alignment: .center, spacing: size(5)) {
+                PulseOrb(pulse: pulse, scale: scale * 0.74, offset: PulseOrb.offset(for: worker.name))
+                Text(worker.name)
+                    .font(.system(size: size(15), weight: .semibold))
+                    .foregroundStyle(pulse == .quiet ? Ink.secondary : Ink.primary)
+                    .lineLimit(1)
+                    .layoutPriority(1)
+                Spacer(minLength: size(2))
+                time(pulse, points: 13)
+            }
+            ActivityStrip(bars: bars, pulse: pulse, scale: scale, height: 10)
+                .padding(.leading, size(23))
+        }
+    }
+
+    /// The time at the right of a small row. A stalled agent says so, in red, in its place.
+    @ViewBuilder
+    private func time(_ pulse: Board.Pulse, points: CGFloat) -> some View {
+        if pulse == .stalled {
+            Text("stalled")
+                .font(.system(size: size(points), weight: .heavy))
+                .foregroundStyle(Ink.stalled)
+                .fixedSize()
+        } else {
+            Text(Elapsed.short(from: worker.since, to: now))
+                .font(.system(size: size(points), weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(Ink.secondary)
+                .fixedSize()
+        }
+    }
+
+    private var full: some View {
+        let pulse = worker.pulse(at: now)
+        return HStack(alignment: .top, spacing: size(10)) {
             PulseOrb(pulse: pulse, scale: scale, offset: PulseOrb.offset(for: worker.name))
                 .padding(.top, size(-1))
             VStack(alignment: .leading, spacing: size(2)) {
@@ -122,6 +195,8 @@ struct ActivityStrip: View {
     let bars: [Int]
     let pulse: Board.Pulse
     let scale: CGFloat
+    /// The height of a full bar, in points before scaling.
+    var height: CGFloat = 16
 
     var body: some View {
         // At least 4, so a single call is a small bar and not a full one.
@@ -133,10 +208,10 @@ struct ActivityStrip: View {
                 let recent = Double(index) / Double(max(1, bars.count - 1))
                 RoundedRectangle(cornerRadius: 1.5 * scale, style: .continuous)
                     .fill(Color.white.opacity(value == 0 || pulse == .stalled ? 0.20 : 0.34 + 0.66 * recent))
-                    .frame(width: 4 * scale, height: (2 + 14 * share) * scale)
+                    .frame(width: 4 * scale, height: (2 + (height - 2) * share) * scale)
             }
         }
-        .frame(height: 16 * scale, alignment: .bottom)
+        .frame(height: height * scale, alignment: .bottom)
         .animation(.spring(response: 0.5, dampingFraction: 0.72), value: bars)
         .accessibilityHidden(true)
     }

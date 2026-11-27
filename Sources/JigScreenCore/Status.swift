@@ -15,6 +15,18 @@ public struct StatusFile: Decodable, Equatable {
         public var startedAt: Date?
         public var waitingSince: Date?
         public var completedAt: Date?
+
+        public init(id: String, title: String, kind: Kind, state: State, agent: String? = nil,
+                    startedAt: Date? = nil, waitingSince: Date? = nil, completedAt: Date? = nil) {
+            self.id = id
+            self.title = title
+            self.kind = kind
+            self.state = state
+            self.agent = agent
+            self.startedAt = startedAt
+            self.waitingSince = waitingSince
+            self.completedAt = completedAt
+        }
     }
 
     public struct Agent: Decodable, Equatable {

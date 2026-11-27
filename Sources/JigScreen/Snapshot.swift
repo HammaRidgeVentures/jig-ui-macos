@@ -4,9 +4,10 @@ import JigScreenCore
 
 /// Draws the screen into a PNG with no display and no permission. For the README and for checks.
 ///
-///   JigScreen --snapshot out.png [--size 1440x900] [--source status.json] [--photos <folder>] [--clear]
+///   JigScreen --snapshot out.png [--size 1440x900] [--source status.json] [--photos <folder>] [--clear] [--agents 12]
 ///
 /// `--clear` empties the waiting list, to show the screen with nothing waiting.
+/// `--agents N` fills the sample until N agents are at work.
 enum Snapshot {
     private static var window: NSWindow?
 
@@ -33,6 +34,9 @@ enum Snapshot {
                 let gone = Set(file.items.filter { $0.state == .waitingUser }.map(\.id))
                 file.items.removeAll { gone.contains($0.id) }
                 file.agents.removeAll { $0.currentItemId.map(gone.contains) ?? false }
+            }
+            if let count = value("--agents").flatMap({ Int($0) }) {
+                file = StatusStore.enliven(StatusStore.crowded(file, workers: count, at: Date()), at: Date())
             }
             store.set(file)
         } catch {

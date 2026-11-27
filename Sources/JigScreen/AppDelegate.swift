@@ -79,6 +79,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let sample = action("Sample data", #selector(pickSample))
         sample.state = settings.source == .sample ? .on : .off
         source.addItem(sample)
+        let crowd = action("Sample data, 12 agents", #selector(pickCrowd))
+        crowd.state = settings.source == .crowd ? .on : .off
+        source.addItem(crowd)
         let jig = action("Jig on this Mac", #selector(pickJig))
         jig.state = settings.source == .jig ? .on : .off
         source.addItem(jig)
@@ -219,6 +222,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func pickIdle(_ sender: NSMenuItem) { settings.idleMinutes = sender.tag }
     @objc private func pickSample() { settings.source = .sample; store.refresh() }
+    @objc private func pickCrowd() { settings.source = .crowd; store.refresh() }
     @objc private func pickJig() { settings.source = .jig; store.refresh() }
 
     @objc private func pickFile() {

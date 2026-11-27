@@ -7,7 +7,7 @@
 class JigScreen < Formula
   desc "Status screen for Jig agents when your Mac is idle"
   homepage "https://github.com/HammaRidgeVentures/jig-ui-macos"
-  url "https://github.com/HammaRidgeVentures/jig-ui-macos/archive/refs/tags/v0.3.0.tar.gz"
+  url "https://github.com/HammaRidgeVentures/jig-ui-macos/archive/refs/tags/v0.3.1.tar.gz"
   sha256 "d52af1dbb753d07b2f7b5c78423641328792c973a7ab235a4df43c61c9a97cb3"
   license "MIT"
 

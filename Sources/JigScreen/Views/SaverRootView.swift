@@ -10,8 +10,9 @@ struct SaverRootView: View {
 
     var body: some View {
         GeometryReader { geo in
-            // A big display is read from further away: grow everything with it.
-            let scale = min(1.6, max(1, geo.size.height / 1000))
+            // Everything grows and shrinks with the display's height, so the panel takes the same
+            // share of any screen: a full panel fits a small laptop, and a big display reads from far off.
+            let scale = min(1.6, max(0.85, geo.size.height / 980))
             let background = Backgrounds.current(settings)
             let someoneWaits = store.status?.items.contains { $0.state == .waitingUser } ?? false
             ZStack {

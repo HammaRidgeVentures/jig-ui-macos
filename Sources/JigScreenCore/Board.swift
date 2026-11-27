@@ -88,6 +88,33 @@ public struct Board: Equatable {
         updatedAt = status.updatedAt
     }
 
+    /// How much room one agent gets under "Working". More agents, less room each.
+    public enum Density: Equatable {
+        /// Three lines: name and time, the task, the strip and what the agent does now.
+        case full
+        /// Two lines: name and time, then the strip and the task.
+        case medium
+        /// A cell in a two-column grid: the pulse, the name, the time, and the strip.
+        case compact
+
+        /// The most agents the panel shows at this density. The rest are a "+ N more" line.
+        public var limit: Int {
+            switch self {
+            case .full: return 5
+            case .medium: return 8
+            case .compact: return 16
+            }
+        }
+    }
+
+    /// The density for this many agents. A waiting list takes room, so each step comes sooner beside one:
+    /// full rows for up to 4 agents (5 with nothing waiting), two-line rows up to 6 (8), then the grid.
+    public var density: Density {
+        let waiting = waitingCount > 0
+        if workers.count <= (waiting ? 4 : 5) { return .full }
+        return workers.count <= (waiting ? 6 : 8) ? .medium : .compact
+    }
+
     /// Agents at work whose heartbeat is fresh.
     public var running: Int { workers.filter { !$0.stalled }.count }
 

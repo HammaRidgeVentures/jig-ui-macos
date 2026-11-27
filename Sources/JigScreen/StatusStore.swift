@@ -42,7 +42,7 @@ final class StatusStore: ObservableObject {
         if logSource != source {
             log = ActivityLog()
             logSource = source
-            if source == .sample { StatusStore.seed(&log, for: file, at: now) }
+            if source == .sample || source == .crowd { StatusStore.seed(&log, for: file, at: now) }
         }
         log.record(file, at: now)
         status = file
@@ -71,6 +71,10 @@ final class StatusStore: ObservableObject {
         case .sample:
             guard let url = sampleURL() else { throw Problem("the sample file is missing") }
             return enliven(try StatusFile.decode(Data(contentsOf: url)).moved(to: Date()), at: Date())
+        case .crowd:
+            guard let url = sampleURL() else { throw Problem("the sample file is missing") }
+            let now = Date()
+            return enliven(crowded(try StatusFile.decode(Data(contentsOf: url)).moved(to: now), workers: 12, at: now), at: now)
         case .file(let path):
             return try StatusFile.decode(Data(contentsOf: URL(fileURLWithPath: (path as NSString).expandingTildeInPath)))
         case .url(let text):
@@ -99,8 +103,33 @@ final class StatusStore: ObservableObject {
         return copy
     }
 
-    /// Seconds between a sample agent's tool calls.
-    private static func samplePace(_ index: Int) -> Double { [13.0, 7.0, 75.0][index % 3] }
+    /// Seconds between a sample agent's tool calls: some busy, some slow, some nearly quiet.
+    private static func samplePace(_ index: Int) -> Double {
+        let paces = [13.0, 7.0, 75.0, 5.0, 28.0, 9.0, 240.0, 18.0, 45.0, 11.0, 150.0, 6.0]
+        return paces[index % paces.count]
+    }
+
+    /// The sample with more agents at work, until `workers` of them show under "Working".
+    /// Every seventh one is stalled, so a full house shows each state.
+    static func crowded(_ file: StatusFile, workers: Int, at now: Date) -> StatusFile {
+        var copy = file
+        let names = ["api", "api 2", "billing", "mobile", "search", "infra", "blog", "mail", "auth", "reports", "admin", "sync", "cache", "forms"]
+        let tasks = ["Add rate limits to the public API", "Move invoices to the new template", "Fix the login loop on small phones",
+                     "Rank exact matches first", "Rotate the build cache weekly", "Write the launch post", "Retry a bounced receipt",
+                     "Drop the old session cookie", "Cut the weekly report query time", "Add bulk edit to the orders table",
+                     "Sync stock every 5 minutes", "Warm the cache after a deploy", "Check every form for a label", "Tidy the 404 page"]
+        var index = 0
+        while Board(copy, now: now, idleSince: now).workers.count < workers, index < names.count {
+            let id = "sample:\(index)"
+            let stalled = index % 7 == 4
+            copy.items.append(.init(id: id, title: tasks[index], kind: .task, state: .working, agent: names[index],
+                                    startedAt: now.addingTimeInterval(-Double(4 + index * 7) * 60)))
+            copy.agents.append(.init(name: names[index], currentItemId: id,
+                                     lastHeartbeat: now.addingTimeInterval(stalled ? -14 * 60 : -5), activity: "Bash", toolCalls: 0))
+            index += 1
+        }
+        return copy
+    }
 
     /// A made-up last 12 minutes for the sample's agents, so the strips are not empty at first sight.
     private static func seed(_ log: inout ActivityLog, for file: StatusFile, at now: Date) {

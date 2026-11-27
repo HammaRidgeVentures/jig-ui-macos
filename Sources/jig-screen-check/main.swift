@@ -54,6 +54,21 @@ check("action: another connector tool", "using a tool", Activity.words(for: "mcp
 check("action: not known stays nil", true, Activity.words(for: nil) == nil)
 check("action: the sample's worker has one", "editing files", board.workers[2].action)
 
+// How many agents fit.
+func crowd(_ workers: Int, waiting: Int) -> Board {
+    let agents = (0..<workers).map { StatusFile.Agent(name: "a\($0)", lastHeartbeat: now) }
+    let waits = (0..<waiting).map { StatusFile.Item(id: "w\($0)", title: "?", kind: .question, state: .waitingUser) }
+    return Board(StatusFile(updatedAt: now, items: waits, agents: agents), now: now, idleSince: now)
+}
+check("density: four agents get full rows", .full, crowd(4, waiting: 2).density)
+check("density: five get full rows when nothing waits", .full, crowd(5, waiting: 0).density)
+check("density: five are medium beside a waiting list", .medium, crowd(5, waiting: 1).density)
+check("density: six are medium beside a waiting list", .medium, crowd(6, waiting: 3).density)
+check("density: seven are compact beside a waiting list", .compact, crowd(7, waiting: 3).density)
+check("density: eight are medium when nothing waits", .medium, crowd(8, waiting: 0).density)
+check("density: twelve are compact", .compact, crowd(12, waiting: 3).density)
+check("density: compact shows up to sixteen", 16, Board.Density.compact.limit)
+
 // The history of tool calls.
 func one(_ calls: Int?, beat: TimeInterval = 0) -> StatusFile {
     StatusFile(updatedAt: now, items: [], agents: [.init(name: "a", currentItemId: nil, lastHeartbeat: now.addingTimeInterval(beat), activity: "Bash", toolCalls: calls)])

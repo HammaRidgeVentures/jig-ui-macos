@@ -6,6 +6,10 @@ from across the room what waits on you.
 
 ![The screen, from the sample data](docs/screen.png)
 
+With 12 agents at work, the rows become a grid:
+
+![The panel with 12 agents](docs/panel-12.png)
+
 It is not a real screen saver. An app can't draw over the real one, and the old screen saver
 plug-ins are too buggy on new versions of macOS. So Jig Screen watches the idle time itself, and
 opens its own full-screen windows.
@@ -95,6 +99,10 @@ The app reads the status once a minute for the icon, also while the screen is aw
   - **A strip of 12 bars.** The agent's tool calls in each of the last 12 minutes, newest on the right.
   - **What it does now:** "running a command", "editing files", "thinking".
   - The heading has the tool calls a minute across every agent.
+- **Room for many agents.** A row gets smaller as more agents work:
+  - up to 4 agents: three lines each, as above (5 when nothing waits on you);
+  - up to 6: two lines each, the strip beside the task (8 when nothing waits);
+  - more: a grid of two columns, with the pulse, the name, the time and the strip. It shows 16.
 - The waiting count breathes slowly while it is above zero. With **Reduce motion** on in macOS,
   nothing on the screen moves.
 - **Footer.** Queued, done since you went idle, failed. Then the age of the data.
@@ -106,6 +114,7 @@ The app reads the status once a minute for the icon, also while the screen is aw
 | Source | Use it when |
 | --- | --- |
 | **Sample data** | You want to see the screen with no agents running. |
+| **Sample data, 12 agents** | You want to see the screen with a full house. |
 | **Jig on this Mac** | Your agents run on this Mac. The app runs `jig status --json` itself. |
 | **A file…** | Something else writes a `status.json` on this Mac. |
 | **A web address…** | Your agents run on another Mac. |
@@ -192,7 +201,7 @@ The code is SwiftUI in an `NSHostingView`. It has no web view and no outside pac
 A snapshot takes more options:
 
 ```bash
-"$(swift build --show-bin-path)/JigScreen" --snapshot out.png --size 1440x900 --source status.json --photos ~/Pictures --clear
+"$(swift build --show-bin-path)/JigScreen" --snapshot out.png --size 1440x900 --source status.json --photos ~/Pictures --clear --agents 12
 ```
 
 ## Limits
