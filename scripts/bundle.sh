@@ -8,8 +8,11 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 version=$(cat VERSION)
 
-swift build -c release --product JigScreen 2>&1 | grep -v "search path" >&2 || true
-bin=$(swift build -c release --show-bin-path)/JigScreen
+# SWIFT_BUILD_FLAGS: more flags for `swift build`. A Homebrew formula passes --disable-sandbox.
+# shellcheck disable=SC2086
+swift build -c release --product JigScreen ${SWIFT_BUILD_FLAGS:-} 2>&1 | grep -v "search path" >&2 || true
+# shellcheck disable=SC2086
+bin=$(swift build -c release ${SWIFT_BUILD_FLAGS:-} --show-bin-path)/JigScreen
 [ -x "$bin" ] || { echo "The build made no program at $bin" >&2; exit 1; }
 
 # Start from an empty bundle, so a file from an older build never ships.
