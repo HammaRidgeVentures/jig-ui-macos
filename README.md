@@ -42,10 +42,28 @@ sleep and the password are your lock, so keep both.
 | **Start after** | How long the Mac is idle before the screen shows. 5 minutes at first. |
 | **Data source** | Where the status comes from. See below. |
 | **Background** | A solid color, or a slideshow of your photos. |
+| **Hot key** | A key that shows the screen from anywhere, and closes it. You pick it. None at first. |
+| **Hot corner** | A corner of the display. Rest the pointer there and the screen shows. Off at first. |
 | **Launch at login** | Starts Jig Screen when you log in. |
 
-The screen does not show while a video, a call or a presentation keeps the display awake.
-It does not show over the lock screen.
+The screen does not show by itself while a video, a call or a presentation keeps the display
+awake. The hot key and the hot corner show it anyway. Nothing shows over the lock screen.
+
+### The menu bar icon
+
+The icon is a small agent's head. While agents work, three dots move inside it, and a number
+beside it says how many. A stalled agent is not counted. Hover to read the counts, with what
+waits on you. With **Reduce motion** on in macOS, the dots stay still.
+
+The app reads the status once a minute for the icon, also while the screen is away.
+
+### The hot key and the hot corner
+
+- **Hot key.** Pick **Hot key**, then **Set a hot key…**, and press the keys. It needs Control,
+  Option or Command. It needs no Accessibility permission.
+- **Hot corner.** macOS can't add an action to its own hot corners, so Jig Screen watches the
+  pointer itself. Pick a corner that has no macOS hot corner on it (System Settings, Desktop &
+  Dock, Hot Corners), or both will fire.
 
 ## The screen
 

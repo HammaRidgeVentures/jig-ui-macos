@@ -28,6 +28,9 @@ final class SaverController {
     private var moved: CGFloat = 0
     private var previousApp: NSRunningApplication?
     private var cursorHidden = false
+    private var modifiers: NSEvent.ModifierFlags = []
+    /// When the screen last closed. A hot key press that closed it must not open it again.
+    private(set) var lastDismissed = Date.distantPast
 
     var isShowing: Bool { !windows.isEmpty }
 
@@ -39,7 +42,8 @@ final class SaverController {
         moved = 0
         previousApp = NSWorkspace.shared.frontmostApplication
         let session = SaverSession(idleSince: idleSince)
-        store.startPolling()
+        modifiers = NSEvent.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        store.startPolling(showing: true)
 
         for (index, screen) in NSScreen.screens.enumerated() {
             let window = SaverWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
@@ -88,7 +92,8 @@ final class SaverController {
         pollTimer = nil
         observers.forEach { NotificationCenter.default.removeObserver($0); NSWorkspace.shared.notificationCenter.removeObserver($0) }
         observers = []
-        store.stopPolling()
+        lastDismissed = Date()
+        store.startPolling(showing: false)
         if cursorHidden { NSCursor.unhide(); cursorHidden = false }
         let closing = windows
         windows = []
@@ -115,7 +120,8 @@ final class SaverController {
         let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
             guard let self else { return }
             let showing = Date().timeIntervalSince(self.shownAt)
-            if showing > 1.2, Idle.seconds() < showing - 0.6 { self.dismiss() }
+            // The start is slack: the hand that pressed the hot key is still letting go.
+            if showing > 1.5, Idle.seconds() < showing - 1.0 { self.dismiss() }
         }
         RunLoop.main.add(timer, forMode: .common)
         pollTimer = timer
@@ -134,6 +140,13 @@ final class SaverController {
     private func saw(_ event: NSEvent) {
         // The click on "Preview now" is still in the air for a moment: ignore the first instant.
         guard Date().timeIntervalSince(shownAt) > 0.6 else { return }
+        if event.type == .flagsChanged {
+            // A modifier going down is a key press. One coming up is the hot key being let go.
+            let now = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            let pressed = !now.subtracting(modifiers).isEmpty
+            modifiers = now
+            if !pressed { return }
+        }
         if event.type == .mouseMoved || event.type == .leftMouseDragged {
             // A desk bump moves the mouse a pixel. A hand moves it more.
             moved += abs(event.deltaX) + abs(event.deltaY)

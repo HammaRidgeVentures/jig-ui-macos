@@ -1,6 +1,8 @@
 import AppKit
 import ServiceManagement
 import SwiftUI
+import Combine
+import JigScreenCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let settings = Settings.shared
@@ -8,6 +10,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private lazy var saver = SaverController(store: store)
     private let monitor = IdleMonitor()
     private var statusItem: NSStatusItem?
+    private var icon: MenuBarIcon?
+    private let hotKeys = HotKeyCenter()
+    private let corner = HotCornerWatcher()
+    private var watching: Set<AnyCancellable> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let arguments = CommandLine.arguments
@@ -15,10 +21,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             Snapshot.run(to: arguments[flag + 1], arguments: arguments, store: store)
             return
         }
+        if let flag = arguments.firstIndex(of: "--icon-frames"), arguments.count > flag + 1 {
+            exit(MenuBarIcon.writeFrames(to: arguments[flag + 1]) ? 0 : 1)
+        }
 
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "rectangle.inset.bottomright.filled",
-                                     accessibilityDescription: "Jig Screen")
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        icon = MenuBarIcon(button: item.button)
         let menu = NSMenu()
         menu.delegate = self
         item.menu = menu
@@ -35,6 +43,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         monitor.onAlmostIdle = { [weak self] in self?.store.refresh() }
         monitor.onIdle = { [weak self] since in self?.saver.show(idleSince: since) }
         monitor.start()
+
+        // The menu bar icon follows the status, also while the screen is away.
+        store.$status.receive(on: DispatchQueue.main).sink { [weak self] status in self?.showAgents(status) }.store(in: &watching)
+        store.startPolling(showing: false)
+
+        hotKeys.onPress = { [weak self] in self?.toggle() }
+        hotKeys.register(settings.hotKey)
+        corner.onTrigger = { [weak self] in
+            guard let self, !self.saver.isShowing, !Idle.screenIsLocked() else { return }
+            self.preview()
+        }
+        corner.set(settings.hotCorner)
 
         if arguments.contains("--preview") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.preview() } }
     }
@@ -97,6 +117,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         background.addItem(submenu("Each photo stays", pace, detail: "\(settings.secondsPerPhoto) s"))
         menu.addItem(submenu("Background", background, detail: settings.background == .slideshow ? "Photos" : "Color"))
 
+        let keys = NSMenu()
+        keys.addItem(action(settings.hotKey == nil ? "Set a hot key…" : "Change the hot key…", #selector(recordHotKey)))
+        if settings.hotKey != nil { keys.addItem(action("Remove the hot key", #selector(removeHotKey))) }
+        menu.addItem(submenu("Hot key", keys, detail: settings.hotKey?.label ?? "None"))
+
+        let corners = NSMenu()
+        for choice in Corner.allCases {
+            let item = action(choice.label, #selector(pickCorner(_:)))
+            item.representedObject = choice.rawValue
+            item.state = settings.hotCorner == choice ? .on : .off
+            corners.addItem(item)
+        }
+        menu.addItem(submenu("Hot corner", corners, detail: settings.hotCorner.label))
+
         menu.addItem(.separator())
         let login = action("Launch at login", #selector(toggleLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -125,6 +159,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // As if the Mac had just reached the idle time.
         store.refresh()
         saver.show(idleSince: Date().addingTimeInterval(-TimeInterval(settings.idleMinutes * 60)))
+    }
+
+    /// The hot key shows the screen, or closes it.
+    private func toggle() {
+        if saver.isShowing { saver.dismiss(); return }
+        // The key press itself may have just closed it: don't open it again.
+        if Date().timeIntervalSince(saver.lastDismissed) < 1 { return }
+        preview()
+    }
+
+    private func showAgents(_ status: StatusFile?) {
+        let now = Date()
+        guard let status else { icon?.update(running: nil, waiting: nil); return }
+        let board = Board(status, now: now, idleSince: now)
+        // Old data says nothing about now: show the icon at rest.
+        if board.isStale(now: now) { icon?.update(running: nil, waiting: nil); return }
+        icon?.update(running: board.running, waiting: board.waitingCount)
+    }
+
+    @objc private func recordHotKey() {
+        NSApp.activate(ignoringOtherApps: true)
+        hotKeys.register(nil)   // so the old hot key can be pressed again as the new one
+        let alert = NSAlert()
+        alert.messageText = "Press the hot key"
+        alert.informativeText = "Hold Control, Option or Command, and press a key. For example ⌃⌥⌘J."
+        alert.addButton(withTitle: "Cancel")
+        var picked: HotKey?
+        let monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.keyCode == 53 { NSApp.abortModal(); return nil }   // Esc
+            guard let key = HotKey(event: event) else { NSSound.beep(); return nil }
+            picked = key
+            NSApp.stopModal()
+            return nil
+        }
+        alert.runModal()
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        alert.window.orderOut(nil)
+
+        guard let picked else { hotKeys.register(settings.hotKey); return }
+        if hotKeys.register(picked) {
+            settings.hotKey = picked
+        } else {
+            hotKeys.register(settings.hotKey)
+            tell("\(picked.label) is taken.", "Another app or macOS uses it. Pick a different one.")
+        }
+    }
+
+    @objc private func removeHotKey() {
+        settings.hotKey = nil
+        hotKeys.register(nil)
+    }
+
+    @objc private func pickCorner(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let choice = Corner(rawValue: raw) else { return }
+        settings.hotCorner = choice
+        corner.set(choice)
     }
 
     @objc private func pickIdle(_ sender: NSMenuItem) { settings.idleMinutes = sender.tag }

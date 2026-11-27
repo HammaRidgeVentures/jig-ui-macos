@@ -12,13 +12,17 @@ final class StatusStore: ObservableObject {
     private var loading = false
     private let queue = DispatchQueue(label: "jig-screen.status", qos: .utility)
 
-    /// A file or a URL is read every 15 seconds. `jig status --json` asks GitHub, so it runs once a minute.
-    private var interval: TimeInterval { Settings.shared.source == .jig ? 60 : 15 }
+    /// While the screen shows: a file or a URL is read every 15 seconds. `jig status --json` asks GitHub,
+    /// so it runs once a minute. While the screen is away, once a minute is enough for the menu bar icon.
+    private func interval(showing: Bool) -> TimeInterval {
+        showing && Settings.shared.source != .jig ? 15 : 60
+    }
 
-    func startPolling() {
+    func startPolling(showing: Bool) {
         stopPolling()
         refresh()
-        let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in self?.refresh() }
+        let t = Timer(timeInterval: interval(showing: showing), repeats: true) { [weak self] _ in self?.refresh() }
+        t.tolerance = 2
         RunLoop.main.add(t, forMode: .common)
         timer = t
     }

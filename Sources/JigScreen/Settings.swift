@@ -42,6 +42,9 @@ final class Settings: ObservableObject {
     @Published var photoFolder: String? { didSet { defaults.set(photoFolder, forKey: "photoFolder") } }
     @Published var secondsPerPhoto: Int { didSet { defaults.set(secondsPerPhoto, forKey: "secondsPerPhoto") } }
 
+    @Published var hotKey: HotKey? { didSet { saveHotKey() } }
+    @Published var hotCorner: Corner { didSet { defaults.set(hotCorner.rawValue, forKey: "hotCorner") } }
+
     static let idleChoices = [1, 2, 5, 10, 15, 30]
     static let photoChoices = [8, 12, 20, 30, 60]
     /// The solid colors on offer: a name and its hex value.
@@ -63,6 +66,23 @@ final class Settings: ObservableObject {
         photoFolder = defaults.string(forKey: "photoFolder")
         let seconds = defaults.integer(forKey: "secondsPerPhoto")
         secondsPerPhoto = seconds > 0 ? seconds : 12
+        if let label = defaults.string(forKey: "hotKeyLabel") {
+            hotKey = HotKey(keyCode: UInt32(defaults.integer(forKey: "hotKeyCode")),
+                            modifiers: UInt32(defaults.integer(forKey: "hotKeyModifiers")), label: label)
+        } else {
+            hotKey = nil
+        }
+        hotCorner = Corner(rawValue: defaults.string(forKey: "hotCorner") ?? "") ?? .off
+    }
+
+    private func saveHotKey() {
+        guard let hotKey else {
+            ["hotKeyCode", "hotKeyModifiers", "hotKeyLabel"].forEach { defaults.removeObject(forKey: $0) }
+            return
+        }
+        defaults.set(Int(hotKey.keyCode), forKey: "hotKeyCode")
+        defaults.set(Int(hotKey.modifiers), forKey: "hotKeyModifiers")
+        defaults.set(hotKey.label, forKey: "hotKeyLabel")
     }
 
     private func saveSource() {

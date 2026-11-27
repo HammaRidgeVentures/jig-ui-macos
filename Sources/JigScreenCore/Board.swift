@@ -60,6 +60,9 @@ public struct Board: Equatable {
         updatedAt = status.updatedAt
     }
 
+    /// Agents at work whose heartbeat is fresh.
+    public var running: Int { workers.filter { !$0.stalled }.count }
+
     public func isStale(now: Date) -> Bool { now.timeIntervalSince(updatedAt) > Board.staleAfter }
 }
 

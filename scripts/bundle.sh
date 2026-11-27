@@ -23,7 +23,9 @@ sed "s/@VERSION@/$version/g" scripts/Info.plist >"build/Jig Screen.app/Contents/
 codesign --force --sign - "build/Jig Screen.app" >&2
 
 if [ "${1:-}" = "--install" ]; then
+  # Quit the running copy, and wait until it is gone: `open` fails on an app that is still quitting.
   pkill -x JigScreen 2>/dev/null || true
+  for _ in 1 2 3 4 5 6 7 8 9 10; do pgrep -x JigScreen >/dev/null || break; sleep 0.3; done
   # ditto copies over an older install in place.
   ditto "build/Jig Screen.app" "/Applications/Jig Screen.app"
   open "/Applications/Jig Screen.app"
