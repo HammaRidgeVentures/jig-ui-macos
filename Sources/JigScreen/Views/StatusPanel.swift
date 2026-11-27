@@ -4,6 +4,7 @@ import JigScreenCore
 /// The panel, bottom right: what waits on the owner, who is working, the counts, the data's age.
 struct StatusPanel: View {
     let board: Board?
+    let log: ActivityLog
     let problem: String?
     let now: Date
     let scale: CGFloat
@@ -51,14 +52,9 @@ struct StatusPanel: View {
 
     @ViewBuilder
     private func waiting(_ board: Board) -> some View {
-        let some = board.waitingCount > 0
         VStack(alignment: .leading, spacing: size(8)) {
             heading("Waiting on you")
-            Text("\(board.waitingCount)")
-                .font(.system(size: size(84), weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(some ? Ink.amber : Color.white.opacity(0.4))
-                .frame(height: size(84))
+            WaitingCount(count: board.waitingCount, scale: scale)
             ForEach(board.waiting) { wait in
                 HStack(alignment: .firstTextBaseline, spacing: size(8)) {
                     Image(systemName: wait.kind == .approval ? "checkmark.circle.fill" : "questionmark.circle.fill")
@@ -88,37 +84,27 @@ struct StatusPanel: View {
 
     @ViewBuilder
     private func working(_ board: Board) -> some View {
-        let shown = board.workers.prefix(5)
-        VStack(alignment: .leading, spacing: size(10)) {
-            heading("Working")
+        // A full waiting list leaves room for four agents.
+        let shown = board.workers.prefix(board.waitingCount > 0 ? 4 : 5)
+        let rate = log.rate(at: now)
+        VStack(alignment: .leading, spacing: size(12)) {
+            HStack(alignment: .firstTextBaseline) {
+                heading("Working")
+                Spacer()
+                if rate > 0 {
+                    Text("\(rate) tool calls a min")
+                        .font(.system(size: size(13), weight: .medium))
+                        .monospacedDigit()
+                        .foregroundStyle(Ink.label)
+                }
+            }
             if board.workers.isEmpty {
                 Text("No agent is working")
                     .font(.system(size: size(16)))
                     .foregroundStyle(Ink.secondary)
             }
             ForEach(Array(shown)) { worker in
-                VStack(alignment: .leading, spacing: size(1)) {
-                    HStack(alignment: .firstTextBaseline, spacing: size(8)) {
-                        Text(worker.name)
-                            .font(.system(size: size(17), weight: .semibold))
-                            .foregroundStyle(Ink.primary)
-                            .lineLimit(1)
-                        Spacer(minLength: size(6))
-                        if worker.stalled {
-                            Text("stalled")
-                                .font(.system(size: size(15), weight: .heavy))
-                                .foregroundStyle(Ink.stalled)
-                        }
-                        Text(Elapsed.short(from: worker.since, to: now))
-                            .font(.system(size: size(16), weight: .medium))
-                            .monospacedDigit()
-                            .foregroundStyle(Ink.secondary)
-                    }
-                    Text(worker.task)
-                        .font(.system(size: size(15)))
-                        .foregroundStyle(Ink.secondary)
-                        .lineLimit(1)
-                }
+                WorkerRow(worker: worker, bars: log.bars(for: worker.name, at: now), now: now, scale: scale)
             }
             if board.workers.count > shown.count {
                 Text("+ \(board.workers.count - shown.count) more")

@@ -1,14 +1,15 @@
 # The Homebrew formula for Jig Screen. This is the copy of record: the one that installs lives in
 # the tap, HammaRidgeVentures/homebrew-tap, as Formula/jig-screen.rb.
 #
-# It builds from source, so the app needs no Apple notarizing. Homebrew can only fetch the source
-# if this repo is public. For a new version: tag it, then set `url` and `sha256` here and in the tap.
+# It builds from source, so the app needs no Apple notarizing.
+# For a new version: tag it, then set `url` and `sha256` here and in the tap.
 #   curl -sL <url> | shasum -a 256
 class JigScreen < Formula
   desc "Status screen for Jig agents when your Mac is idle"
   homepage "https://github.com/HammaRidgeVentures/jig-ui-macos"
-  url "https://github.com/HammaRidgeVentures/jig-ui-macos/archive/refs/tags/v0.2.1.tar.gz"
+  url "https://github.com/HammaRidgeVentures/jig-ui-macos/archive/refs/tags/v0.3.0.tar.gz"
   sha256 "SET-ME-AFTER-THE-TAG-IS-PUBLIC"
+  license "MIT"
 
   depends_on macos: :ventura
 

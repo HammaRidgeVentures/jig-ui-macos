@@ -15,13 +15,30 @@ opens its own full-screen windows.
 You need macOS 13 or newer and the Command Line Tools (`xcode-select --install`). You don't need Xcode.
 
 ```bash
+brew install hammaridgeventures/tap/jig-screen
+```
+
+Start it now, and at every login:
+
+```bash
+brew services start jig-screen
+```
+
+Look for the small agent's head in the menu bar. Pick **Preview now** to see the screen with the
+sample data.
+
+Homebrew builds the app on your Mac from this code. That is why it opens with no warning from
+macOS, though it is not notarized. A new Homebrew may ask you to trust the tap first:
+`brew trust --formula hammaridgeventures/tap/jig-screen`.
+
+### From the code
+
+```bash
 make install
 ```
 
-That builds `Jig Screen.app`, copies it to `/Applications` and opens it. Look for the small
-screen icon in the menu bar. Pick **Preview now** to see the screen with the sample data.
-
-The app is signed for this Mac only. To run it on another Mac, build it there.
+That builds `Jig Screen.app`, copies it to `/Applications` and opens it. Use one way or the
+other, not both: two copies are two icons.
 
 ## Set up macOS (do this once)
 
@@ -71,8 +88,15 @@ The app reads the status once a minute for the icon, also while the screen is aw
 - **Waiting on you.** A large count, and the three questions or approvals that have waited
   longest. This part is amber. With a photo background, the photos turn gray while anything
   waits, so amber is the one color on the screen.
-- **Working.** One row for each agent: its name, its task, and how long. A red **stalled** shows
-  when the agent's last heartbeat is more than 10 minutes old.
+- **Working.** One row for each agent: its name, its task, and how long. Each row is live:
+  - **A pulse.** It pings about once a second when the agent called a tool in the last 30 seconds.
+    It breathes slowly for up to 3 minutes (the agent thinks, or one long step runs). It sits
+    still when the agent is quiet, and turns into a red ring when it is **stalled** (10 minutes).
+  - **A strip of 12 bars.** The agent's tool calls in each of the last 12 minutes, newest on the right.
+  - **What it does now:** "running a command", "editing files", "thinking".
+  - The heading has the tool calls a minute across every agent.
+- The waiting count breathes slowly while it is above zero. With **Reduce motion** on in macOS,
+  nothing on the screen moves.
 - **Footer.** Queued, done since you went idle, failed. Then the age of the data.
 - The panel dims when the data is more than 2 minutes old.
 - The clock and the panel move a few points every 3 minutes. That guards against burn-in.
@@ -82,11 +106,13 @@ The app reads the status once a minute for the icon, also while the screen is aw
 | Source | Use it when |
 | --- | --- |
 | **Sample data** | You want to see the screen with no agents running. |
-| **Jig on this Mac** | Your agents run on this Mac. The app runs `jig status --json` once a minute. |
-| **A file…** | Something else writes a `status.json` on this Mac. Read every 15 seconds. |
-| **A web address…** | Your agents run on another Mac. Read every 15 seconds. |
+| **Jig on this Mac** | Your agents run on this Mac. The app runs `jig status --json` itself. |
+| **A file…** | Something else writes a `status.json` on this Mac. |
+| **A web address…** | Your agents run on another Mac. |
 
-**Jig on this Mac** needs Jig 0.14.0 or newer. It shows the repos on your queue band
+While the screen shows, the app reads the source every 15 seconds. While it is away, once a minute.
+
+**Jig on this Mac** needs Jig 0.14.1 or newer. It shows the repos on your queue band
 (`band_repos` in `~/.claude/jig.json`).
 
 ### Agents on another Mac (for example a Mac mini, over Tailscale)
@@ -123,7 +149,8 @@ Anything can write this file. Jig writes it with `jig status --json`. The sample
       "agent": "shop", "startedAt": "2026-11-27T18:36:00Z", "waitingSince": null, "completedAt": null }
   ],
   "agents": [
-    { "name": "shop", "currentItemId": "acme/shop#208", "lastHeartbeat": "2026-11-27T18:59:48Z" }
+    { "name": "shop", "currentItemId": "acme/shop#208", "lastHeartbeat": "2026-11-27T18:59:48Z",
+      "activity": "Edit", "toolCalls": 212 }
   ]
 }
 ```
@@ -132,6 +159,9 @@ Anything can write this file. Jig writes it with `jig status --json`. The sample
 - `state`: `queued`, `working`, `waiting_user`, `done` or `failed`.
 - Every time is ISO 8601. A time that is not known is `null`, or left out.
 - An agent whose name is on a `waiting_user` item shows under **Waiting on you**, not under **Working**.
+- `activity` and `toolCalls` are optional. `activity` is the name of the tool the agent called last
+  (`""` while it thinks). `toolCalls` counts its tool calls so far: the app draws the strip from
+  how much it grows. With neither, the pulse and the strip follow `lastHeartbeat` alone.
 
 ## Backgrounds
 
@@ -168,5 +198,11 @@ A snapshot takes more options:
 ## Limits
 
 - A permission prompt stays under **Waiting on you** until that session's next tool call.
+- The strip starts empty when the app starts. It fills as the app watches.
 - Jig has no failed state yet, so **failed** is 0 with Jig's own data.
-- The app is not notarized. A Mac that did not build it will refuse to open it.
+- The app is not notarized. A Mac that did not build it will refuse to open it. Homebrew and
+  `make install` both build it on your Mac.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

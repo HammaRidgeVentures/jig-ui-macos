@@ -24,7 +24,7 @@ struct SaverRootView: View {
                             .offset(drift)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         StatusPanel(board: store.status.map { Board($0, now: now, idleSince: session.idleSince) },
-                                    problem: store.problem, now: now, scale: scale, backed: background.needsBacking)
+                                    log: store.log, problem: store.problem, now: now, scale: scale, backed: background.needsBacking)
                             .offset(x: -drift.width, y: -drift.height)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     }

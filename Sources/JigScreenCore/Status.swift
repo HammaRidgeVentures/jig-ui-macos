@@ -21,6 +21,25 @@ public struct StatusFile: Decodable, Equatable {
         public var name: String
         public var currentItemId: String?
         public var lastHeartbeat: Date?
+        /// The name of the tool the agent called last: "Bash", "Edit". Empty while it thinks. Nil: not known.
+        public var activity: String?
+        /// How many tools the agent has called so far. The screen reads the difference between two loads.
+        public var toolCalls: Int?
+
+        public init(name: String, currentItemId: String? = nil, lastHeartbeat: Date? = nil,
+                    activity: String? = nil, toolCalls: Int? = nil) {
+            self.name = name
+            self.currentItemId = currentItemId
+            self.lastHeartbeat = lastHeartbeat
+            self.activity = activity
+            self.toolCalls = toolCalls
+        }
+    }
+
+    public init(updatedAt: Date, items: [Item], agents: [Agent]) {
+        self.updatedAt = updatedAt
+        self.items = items
+        self.agents = agents
     }
 
     /// A word this app doesn't know reads as `.other`, so a newer writer never breaks the screen.

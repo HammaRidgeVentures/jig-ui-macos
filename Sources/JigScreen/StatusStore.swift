@@ -7,16 +7,17 @@ final class StatusStore: ObservableObject {
     @Published private(set) var status: StatusFile?
     /// Why the last load failed, in a few words. Nil after a good load.
     @Published private(set) var problem: String?
+    /// Each agent's tool calls, minute by minute, kept from one load to the next.
+    @Published private(set) var log = ActivityLog()
+    private var logSource: DataSource?
 
     private var timer: Timer?
     private var loading = false
     private let queue = DispatchQueue(label: "jig-screen.status", qos: .utility)
 
-    /// While the screen shows: a file or a URL is read every 15 seconds. `jig status --json` asks GitHub,
-    /// so it runs once a minute. While the screen is away, once a minute is enough for the menu bar icon.
-    private func interval(showing: Bool) -> TimeInterval {
-        showing && Settings.shared.source != .jig ? 15 : 60
-    }
+    /// While the screen shows, every source is read every 15 seconds. `jig status --json` keeps GitHub's
+    /// answers for 45 seconds, so that is cheap. While the screen is away, once a minute is enough for the icon.
+    private func interval(showing: Bool) -> TimeInterval { showing ? 15 : 60 }
 
     func startPolling(showing: Bool) {
         stopPolling()
@@ -33,7 +34,20 @@ final class StatusStore: ObservableObject {
     }
 
     /// Puts a status in place by hand. A snapshot run uses it.
-    func set(_ file: StatusFile) { status = file; problem = nil }
+    func set(_ file: StatusFile) { took(file, from: .sample) }
+
+    private func took(_ file: StatusFile, from source: DataSource) {
+        let now = Date()
+        // Another source is another set of agents: start the history over.
+        if logSource != source {
+            log = ActivityLog()
+            logSource = source
+            if source == .sample { StatusStore.seed(&log, for: file, at: now) }
+        }
+        log.record(file, at: now)
+        status = file
+        problem = nil
+    }
 
     func refresh() {
         guard !loading else { return }
@@ -44,7 +58,7 @@ final class StatusStore: ObservableObject {
             DispatchQueue.main.async {
                 self.loading = false
                 switch result {
-                case .success(let file): self.status = file; self.problem = nil
+                case .success(let file): self.took(file, from: source)
                 case .failure(let error): self.problem = StatusStore.words(for: error)
                 }
             }
@@ -56,7 +70,7 @@ final class StatusStore: ObservableObject {
         switch source {
         case .sample:
             guard let url = sampleURL() else { throw Problem("the sample file is missing") }
-            return try StatusFile.decode(Data(contentsOf: url)).moved(to: Date())
+            return enliven(try StatusFile.decode(Data(contentsOf: url)).moved(to: Date()), at: Date())
         case .file(let path):
             return try StatusFile.decode(Data(contentsOf: URL(fileURLWithPath: (path as NSString).expandingTildeInPath)))
         case .url(let text):
@@ -66,6 +80,37 @@ final class StatusStore: ObservableObject {
             return try StatusFile.decode(fetch(url))
         case .jig:
             return try StatusFile.decode(runJig())
+        }
+    }
+
+    /// The sample file never changes, so the screen would sit still. This gives its agents a made-up
+    /// rhythm from the clock: one busy, one slow. A stalled agent stays stalled.
+    static func enliven(_ file: StatusFile, at now: Date) -> StatusFile {
+        var copy = file
+        let time = now.timeIntervalSince1970
+        let tools = ["Bash", "Edit", "Read", "Grep", "", "Bash", "Edit"]
+        for index in copy.agents.indices {
+            guard let beat = copy.agents[index].lastHeartbeat, now.timeIntervalSince(beat) < Board.stallAfter else { continue }
+            let pace = samplePace(index)
+            copy.agents[index].toolCalls = Int(time / pace)
+            copy.agents[index].lastHeartbeat = now.addingTimeInterval(-time.truncatingRemainder(dividingBy: pace))
+            copy.agents[index].activity = tools[(Int(time / max(20, pace)) + index * 2) % tools.count]
+        }
+        return copy
+    }
+
+    /// Seconds between a sample agent's tool calls.
+    private static func samplePace(_ index: Int) -> Double { [13.0, 7.0, 75.0][index % 3] }
+
+    /// A made-up last 12 minutes for the sample's agents, so the strips are not empty at first sight.
+    private static func seed(_ log: inout ActivityLog, for file: StatusFile, at now: Date) {
+        for (index, agent) in file.agents.enumerated() {
+            guard let beat = agent.lastHeartbeat, now.timeIntervalSince(beat) < Board.stallAfter else { continue }
+            let perMinute = 60 / samplePace(index)
+            let bars = (0..<12).map { minute in
+                max(0, Int((perMinute * (0.62 + 0.55 * sin(Double(minute) * 1.7 + Double(index) * 2.1))).rounded()))
+            }
+            log.seed(agent.name, bars: bars, at: now)
         }
     }
 
