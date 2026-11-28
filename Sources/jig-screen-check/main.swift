@@ -22,6 +22,13 @@ check("blocked: the session's name and its issue", "shop · #210", board.blocked
 check("blocked: a session with no issue has its name only", "docs", board.blocked[1].origin)
 check("decisions: the issues that wait, outside every session", 2, board.decisions)
 check("waiting: the blocked sessions and the decisions", 4, board.waitingCount)
+check("off the Desk: a decision with no card yet", 1, board.offDesk)
+let noDesk = StatusFile(updatedAt: now, items: [
+    .init(id: "acme/shop#1", title: "A", kind: .question, state: .waitingUser),
+    .init(id: "acme/shop#2", title: "B", kind: .question, state: .waitingUser, onDesk: true),
+    .init(id: "session:x", title: "C", kind: .question, state: .waitingUser, agent: "shop", onDesk: false),
+], agents: [])
+check("off the Desk: unknown and on-Desk issues and sessions don't count", 0, Board(noDesk, now: now).offDesk)
 check("working: an agent that waits on the owner is left out", ["feeds", "site", "news", "shop 2"], board.workers.map(\.name))
 check("working: a heartbeat older than 10 minutes is stalled", [true, false, false, false], board.workers.map(\.stalled))
 check("working: the task is the agent's item", "Speed up the pricing page", board.workers[1].task)

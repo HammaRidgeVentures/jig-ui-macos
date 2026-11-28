@@ -2,9 +2,9 @@
   "updatedAt": "2026-11-27T19:00:00Z",
   "items": [
     { "id": "session:a1", "title": "Ship the new price page to production?", "kind": "approval", "state": "waiting_user", "agent": "shop", "issue": "acme/shop#210", "startedAt": null, "waitingSince": "2026-11-27T18:18:00Z", "completedAt": null },
-    { "id": "acme/shop#212", "title": "Which of the two refund emails do we send?", "kind": "question", "state": "waiting_user", "agent": null, "startedAt": null, "waitingSince": "2026-11-27T18:47:00Z", "completedAt": null },
+    { "id": "acme/shop#212", "title": "Which of the two refund emails do we send?", "kind": "question", "state": "waiting_user", "agent": null, "startedAt": null, "waitingSince": "2026-11-27T18:47:00Z", "completedAt": null, "onDesk": true },
     { "id": "session:c3", "title": "Claude needs your permission to use Bash", "kind": "approval", "state": "waiting_user", "agent": "docs", "startedAt": null, "waitingSince": "2026-11-27T18:56:30Z", "completedAt": null },
-    { "id": "acme/site#77", "title": "Pick a hero photo for the landing page", "kind": "question", "state": "waiting_user", "agent": null, "startedAt": null, "waitingSince": "2026-11-27T18:58:00Z", "completedAt": null },
+    { "id": "acme/site#77", "title": "Pick a hero photo for the landing page", "kind": "question", "state": "waiting_user", "agent": null, "startedAt": null, "waitingSince": "2026-11-27T18:58:00Z", "completedAt": null, "onDesk": false },
 
     { "id": "acme/shop#210", "title": "Put the new price page live", "kind": "task", "state": "working", "agent": "shop", "startedAt": "2026-11-27T17:40:00Z", "waitingSince": null, "completedAt": null },
     { "id": "acme/shop#208", "title": "Fix the cart total when a coupon is removed", "kind": "task", "state": "working", "agent": "shop 2", "startedAt": "2026-11-27T18:36:00Z", "waitingSince": null, "completedAt": null },

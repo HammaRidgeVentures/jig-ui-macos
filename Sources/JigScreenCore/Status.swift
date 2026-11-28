@@ -25,9 +25,11 @@ public struct StatusFile: Decodable, Equatable {
         public var startedAt: Date?
         public var waitingSince: Date?
         public var completedAt: Date?
+        /// A waiting issue has a card on the Decision Desk: true or false. Nil: no Desk, an older Jig, or no waiting issue.
+        public var onDesk: Bool?
 
         public init(id: String, title: String, kind: Kind, state: State, agent: String? = nil, issue: String? = nil,
-                    startedAt: Date? = nil, waitingSince: Date? = nil, completedAt: Date? = nil) {
+                    startedAt: Date? = nil, waitingSince: Date? = nil, completedAt: Date? = nil, onDesk: Bool? = nil) {
             self.id = id
             self.title = title
             self.kind = kind
@@ -37,6 +39,7 @@ public struct StatusFile: Decodable, Equatable {
             self.startedAt = startedAt
             self.waitingSince = waitingSince
             self.completedAt = completedAt
+            self.onDesk = onDesk
         }
     }
 

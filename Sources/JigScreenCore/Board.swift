@@ -84,6 +84,8 @@ public struct Board: Equatable {
     public var finished: [Finished]
     /// Issues that wait on the owner, outside every session.
     public var decisions: Int
+    /// The decisions with no card on the Decision Desk yet (`onDesk` false). Jig's hourly sync writes their cards.
+    public var offDesk: Int
     /// Issues an agent can take.
     public var queued: Int
     /// Issues closed today, by the calendar's day.
@@ -117,6 +119,7 @@ public struct Board: Equatable {
                  issue: Board.shortIssue($0.issue))
         }
         decisions = waits.count - sessionWaits.count
+        offDesk = waits.filter { !Board.isSession($0) && $0.onDesk == false }.count
 
         // An agent that waits on the owner is not working: it shows above, not here.
         let waitingAgents = Set(waits.compactMap(\.agent))

@@ -114,8 +114,9 @@ The app reads the status once a minute for the icon, also while the screen is aw
   - The heading has the tool calls a minute across every agent.
 - **Done · ready to archive.** The two sessions that finished last, one line each.
 - **Footer.** Three counts of the issues outside the sessions: **Decisions** (the issues that wait
-  on you, in amber), **To do** (the issues an agent can take) and **Shipped today**. Then the age
-  of the data, and a count of failed items when there is one.
+  on you, in amber), **To do** (the issues an agent can take) and **Shipped today**. An amber line
+  "N not on the Desk yet" counts the decisions with no Desk card yet (Jig's hourly sync adds them).
+  Then the age of the data, and a count of failed items when there is one.
 - **Room for it all.** The lists share the panel's height. The blocked list comes first:
   - An agent's row gets smaller as more agents work: three lines each (up to 5 agents), then two
     lines each (up to 8), then a grid of two columns. The grid shows 16.
@@ -192,6 +193,7 @@ Anything can write this file. Jig writes it with `jig status --json`. The sample
 - An agent whose name is on a `waiting_user` item shows under **Blocked on you**, not under **Working**.
 - `issue` is optional: the issue a session works on (`"acme/shop#208"`). The panel shows its number.
 - `background` is optional. `true` means the session's turn ended and work it started still runs.
+- `onDesk` is optional: on a waiting issue, `false` means it has no Decision Desk card yet.
   The panel shows "background work", and never calls that agent stalled.
 - `deskUrl` is optional: the Decision Desk's link. Only an `https` link opens.
 - `activity` and `toolCalls` are optional. `activity` is the name of the tool the agent called last

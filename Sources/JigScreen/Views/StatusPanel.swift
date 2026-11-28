@@ -195,6 +195,13 @@ struct StatusPanel: View {
                 stat(board.queued, "To do", nil)
                 stat(board.shipped, "Shipped today", nil)
             }
+            if board.offDesk > 0 {
+                // A decision with no Desk card yet: Jig's hourly sync writes it. Said here, so a click on
+                // Decisions that opens a Desk without it is no surprise.
+                Text("\(board.offDesk) not on the Desk yet")
+                    .font(.system(size: size(14), weight: .medium))
+                    .foregroundStyle(Ink.amber)
+            }
             Text("updated \(Elapsed.short(from: board.updatedAt, to: now)) ago" + (board.failed > 0 ? " · \(board.failed) failed" : ""))
                 .font(.system(size: size(14)))
                 .monospacedDigit()
