@@ -12,6 +12,9 @@ struct StatusPanel: View {
     let backed: Bool
     /// The room for the three lists, in points before scaling.
     var room: Double = Board.Layout.room
+    /// The Decision Desk's link. "Decisions" opens it on a click. Nil: no desk, no link.
+    var desk: URL? = nil
+    var open: (URL) -> Void = { _ in }
 
     private func size(_ points: CGFloat) -> CGFloat { points * scale }
 
@@ -180,7 +183,15 @@ struct StatusPanel: View {
     private func footer(_ board: Board) -> some View {
         VStack(alignment: .leading, spacing: size(8)) {
             HStack(alignment: .top, spacing: size(8)) {
-                stat(board.decisions, board.decisions == 1 ? "Decision" : "Decisions", board.decisions > 0 ? Ink.amber : nil)
+                let decisions = stat(board.decisions, board.decisions == 1 ? "Decision" : "Decisions", board.decisions > 0 ? Ink.amber : nil)
+                if let desk {
+                    decisions
+                        .contentShape(Rectangle())
+                        .onTapGesture { open(desk) }
+                        .onHover { inside in inside ? NSCursor.pointingHand.push() : NSCursor.pop() }
+                } else {
+                    decisions
+                }
                 stat(board.queued, "To do", nil)
                 stat(board.shipped, "Shipped today", nil)
             }

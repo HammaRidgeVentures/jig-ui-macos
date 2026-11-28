@@ -18,6 +18,11 @@ enum Idle {
         return CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
     }
 
+    /// Seconds since the last key press. A mouse move or click does not count.
+    static func secondsSinceKey() -> TimeInterval {
+        CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: .keyDown)
+    }
+
     /// True while an app asks the system to keep the display on: a video, a call, a presentation.
     static func displayIsHeldAwake() -> Bool {
         var unmanaged: Unmanaged<CFDictionary>?

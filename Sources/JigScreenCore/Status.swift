@@ -5,6 +5,14 @@ public struct StatusFile: Decodable, Equatable {
     public var updatedAt: Date
     public var items: [Item]
     public var agents: [Agent]
+    /// The Decision Desk's link, from `jig config desk_url`. Nil: no desk is set.
+    public var deskUrl: String?
+
+    /// The desk's link, when it is a web address the app may open: https only.
+    public var desk: URL? {
+        guard let text = deskUrl, let url = URL(string: text), url.scheme == "https", url.host != nil else { return nil }
+        return url
+    }
 
     public struct Item: Decodable, Equatable, Identifiable {
         public var id: String
@@ -54,10 +62,11 @@ public struct StatusFile: Decodable, Equatable {
         }
     }
 
-    public init(updatedAt: Date, items: [Item], agents: [Agent]) {
+    public init(updatedAt: Date, items: [Item], agents: [Agent], deskUrl: String? = nil) {
         self.updatedAt = updatedAt
         self.items = items
         self.agents = agents
+        self.deskUrl = deskUrl
     }
 
     /// A word this app doesn't know reads as `.other`, so a newer writer never breaks the screen.

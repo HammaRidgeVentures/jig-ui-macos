@@ -52,14 +52,20 @@ Open **System Settings**, then **Lock Screen**.
 2. Keep **Turn display off when inactive**. Set it longer than Jig Screen's own time.
 3. Keep **Require password after screen saver begins or display is turned off**.
 
-**Jig Screen does not lock your Mac.** Any key, click or mouse move closes it. The display
-sleep and the password are your lock, so keep both.
+**Jig Screen does not lock your Mac.** Any key or click closes it. The display sleep and the
+password are your lock, so keep both.
+
+A mouse move does not close the screen. It shows the pointer, so you can click what is on it:
+
+- Click **Decisions** to open your Decision Desk in the browser (when Jig has a desk set).
+- Click anywhere else, or press any key, to close the screen.
 
 ## The menu
 
 | Item | What it does |
 | --- | --- |
 | **Preview now** | Shows the screen at once. |
+| **Open Decision Desk** | Opens your desk in the browser. Shows only when Jig has a desk set. |
 | **Start after** | How long the Mac is idle before the screen shows. 5 minutes at first. |
 | **Data source** | Where the status comes from. See below. |
 | **Background** | A solid color, or a slideshow of your photos. |
@@ -163,6 +169,7 @@ Anything can write this file. Jig writes it with `jig status --json`. The sample
 ```json
 {
   "updatedAt": "2026-11-27T19:00:00Z",
+  "deskUrl": "https://claude.ai/artifact/…",
   "items": [
     { "id": "acme/shop#208", "title": "Fix the cart total", "kind": "task", "state": "working",
       "agent": "shop", "issue": null, "startedAt": "2026-11-27T18:36:00Z", "waitingSince": null,
@@ -186,6 +193,7 @@ Anything can write this file. Jig writes it with `jig status --json`. The sample
 - `issue` is optional: the issue a session works on (`"acme/shop#208"`). The panel shows its number.
 - `background` is optional. `true` means the session's turn ended and work it started still runs.
   The panel shows "background work", and never calls that agent stalled.
+- `deskUrl` is optional: the Decision Desk's link. Only an `https` link opens.
 - `activity` and `toolCalls` are optional. `activity` is the name of the tool the agent called last
   (`""` while it thinks). `toolCalls` counts its tool calls so far: the app draws the strip from
   how much it grows. With neither, the pulse and the strip follow `lastHeartbeat` alone.

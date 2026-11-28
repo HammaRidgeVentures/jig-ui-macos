@@ -127,6 +127,11 @@ let oddFile = try StatusFile.decode(Data(odd.utf8))
 check("a time with fractions reads", true, oddFile.updatedAt > Date(timeIntervalSince1970: 0))
 check("an unknown kind and state read as other", [StatusFile.Kind.other.rawValue, StatusFile.State.other.rawValue], [oddFile.items[0].kind.rawValue, oddFile.items[0].state.rawValue])
 check("a missing optional key is nil", true, oddFile.agents[0].lastHeartbeat == nil && oddFile.items[0].agent == nil)
+check("no desk key, no desk", true, oddFile.desk == nil)
+let withDesk = try StatusFile.decode(Data(#"{"updatedAt":"2026-11-27T19:00:00Z","items":[],"agents":[],"deskUrl":"https://claude.ai/artifact/abc"}"#.utf8))
+check("the desk's link reads", "https://claude.ai/artifact/abc", withDesk.desk?.absoluteString ?? "")
+check("a desk link that is not https is not opened", true,
+      StatusFile(updatedAt: now, items: [], agents: [], deskUrl: "file:///etc/hosts").desk == nil)
 check("an agent with no item shows a dash", "—", Board(oddFile, now: oddFile.updatedAt).workers[0].task)
 
 print("\(passed) passed, \(failed) failed")

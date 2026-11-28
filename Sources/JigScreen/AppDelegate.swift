@@ -64,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         menu.addItem(action("Preview now", #selector(preview)))
+        if store.status?.desk != nil { menu.addItem(action("Open Decision Desk", #selector(openDesk))) }
         menu.addItem(.separator())
 
         let idle = NSMenu()
@@ -162,6 +163,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // As if the Mac had just reached the idle time.
         store.refresh()
         saver.show(idleSince: Date().addingTimeInterval(-TimeInterval(settings.idleMinutes * 60)))
+    }
+
+    @objc private func openDesk() {
+        if let desk = store.status?.desk { NSWorkspace.shared.open(desk) }
     }
 
     /// The hot key shows the screen, or closes it.

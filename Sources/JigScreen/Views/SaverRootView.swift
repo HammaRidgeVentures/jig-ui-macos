@@ -26,18 +26,46 @@ struct SaverRootView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         StatusPanel(board: store.status.map { Board($0, now: now) },
                                     log: store.log, problem: store.problem, now: now, scale: scale, backed: background.needsBacking,
-                                    room: Board.Layout.room(height: geo.size.height, scale: scale))
+                                    room: Board.Layout.room(height: geo.size.height, scale: scale),
+                                    desk: store.status?.desk, open: session.open)
                             .offset(x: -drift.width, y: -drift.height)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     }
                     .padding(44 * scale)
                     .animation(.easeInOut(duration: 4), value: drift)
                 }
+                if session.pointerShown {
+                    CloseHint(desk: store.status?.desk != nil, scale: scale, backed: background.needsBacking)
+                        .padding(44 * scale)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                        .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.3), value: session.pointerShown)
             .frame(width: geo.size.width, height: geo.size.height)
+            // A click on any place that is not a link closes the screen.
+            .contentShape(Rectangle())
+            .onTapGesture { session.close() }
         }
         .ignoresSafeArea()
         .preferredColorScheme(.dark)
+    }
+}
+
+/// Bottom left, while the pointer shows: how to close the screen, and what a click opens.
+struct CloseHint: View {
+    let desk: Bool
+    let scale: CGFloat
+    let backed: Bool
+
+    var body: some View {
+        Text(desk ? "Click Decisions to open the desk · click anywhere else or press a key to close"
+                  : "Click anywhere or press a key to close")
+            .font(.system(size: 15 * scale, weight: .medium))
+            .foregroundStyle(Ink.secondary)
+            .padding(.horizontal, 14 * scale)
+            .padding(.vertical, 9 * scale)
+            .modifier(Backing(backed: backed, scale: scale))
     }
 }
 
