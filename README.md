@@ -2,7 +2,7 @@
 
 A menu bar app for macOS. When you walk away, it covers every display with a clock and a
 status panel for your [Jig](https://github.com/HammaRidgeVentures/jig) agents. You can read
-from across the room what waits on you.
+from across the room which sessions are blocked on you, which work, and which are done.
 
 ![The screen, from the sample data](docs/screen.png)
 
@@ -89,23 +89,33 @@ The app reads the status once a minute for the icon, also while the screen is aw
 ## The screen
 
 - **Clock**, top left.
-- **Waiting on you.** A large count, and the three questions or approvals that have waited
-  longest. This part is amber. With a photo background, the photos turn gray while anything
-  waits, so amber is the one color on the screen.
-- **Working.** One row for each agent: its name, its task, and how long. Each row is live:
+- **Three counts**, on top of the panel. They sort every session into one of three:
+  - **Blocked** (red): a session that waits on you. It is at a question, a plan or a permission
+    prompt, or its turn ended with an ask (🔴).
+  - **Working** (blue): a session that is busy, or whose background work still runs (🔵).
+  - **Done** (green): a session that is done and waits for you to archive it (🟢).
+  - A count of zero is gray. So color on the panel always means something is there.
+- **Blocked on you.** The three sessions that have waited longest: what each one asks, its name,
+  its issue, and how long. With a photo background, the photos turn gray while anything waits on
+  you, so the panel's colors stand out.
+- **Working.** One row for each agent: its name, its task, and how long. A task on an issue starts
+  with the issue's number. Each row is live:
   - **A pulse.** It pings about once a second when the agent called a tool in the last 30 seconds.
     It breathes slowly for up to 3 minutes (the agent thinks, or one long step runs). It sits
     still when the agent is quiet, and turns into a red ring when it is **stalled** (10 minutes).
   - **A strip of 12 bars.** The agent's tool calls in each of the last 12 minutes, newest on the right.
-  - **What it does now:** "running a command", "editing files", "thinking".
+  - **What it does now:** "running a command", "editing files", "thinking", "background work".
   - The heading has the tool calls a minute across every agent.
-- **Room for many agents.** A row gets smaller as more agents work:
-  - up to 4 agents: three lines each, as above (5 when nothing waits on you);
-  - up to 6: two lines each, the strip beside the task (8 when nothing waits);
-  - more: a grid of two columns, with the pulse, the name, the time and the strip. It shows 16.
-- The waiting count breathes slowly while it is above zero. With **Reduce motion** on in macOS,
+- **Done · ready to archive.** The two sessions that finished last, one line each.
+- **Footer.** Three counts of the issues outside the sessions: **Decisions** (the issues that wait
+  on you, in amber), **To do** (the issues an agent can take) and **Shipped today**. Then the age
+  of the data, and a count of failed items when there is one.
+- **Room for it all.** The lists share the panel's height. The blocked list comes first:
+  - An agent's row gets smaller as more agents work: three lines each (up to 5 agents), then two
+    lines each (up to 8), then a grid of two columns. The grid shows 16.
+  - The done list gives way before the agents' rows go to a grid. Its count stays on top.
+- The blocked count breathes slowly while it is above zero. With **Reduce motion** on in macOS,
   nothing on the screen moves.
-- **Footer.** Queued, done since you went idle, failed. Then the age of the data.
 - The panel dims when the data is more than 2 minutes old.
 - The clock and the panel move a few points every 3 minutes. That guards against burn-in.
 
@@ -155,11 +165,12 @@ Anything can write this file. Jig writes it with `jig status --json`. The sample
   "updatedAt": "2026-11-27T19:00:00Z",
   "items": [
     { "id": "acme/shop#208", "title": "Fix the cart total", "kind": "task", "state": "working",
-      "agent": "shop", "startedAt": "2026-11-27T18:36:00Z", "waitingSince": null, "completedAt": null }
+      "agent": "shop", "issue": null, "startedAt": "2026-11-27T18:36:00Z", "waitingSince": null,
+      "completedAt": null }
   ],
   "agents": [
     { "name": "shop", "currentItemId": "acme/shop#208", "lastHeartbeat": "2026-11-27T18:59:48Z",
-      "activity": "Edit", "toolCalls": 212 }
+      "activity": "Edit", "toolCalls": 212, "background": false }
   ]
 }
 ```
@@ -167,7 +178,14 @@ Anything can write this file. Jig writes it with `jig status --json`. The sample
 - `kind`: `question`, `approval` or `task`.
 - `state`: `queued`, `working`, `waiting_user`, `done` or `failed`.
 - Every time is ISO 8601. A time that is not known is `null`, or left out.
-- An agent whose name is on a `waiting_user` item shows under **Waiting on you**, not under **Working**.
+- An item is a session when its id starts with `session:`, or when it is a `waiting_user` or
+  `done` item that names an `agent`. Every other item is an issue.
+  - A session's `waiting_user` item shows under **Blocked on you**. An issue's counts in **Decisions**.
+  - A session's `done` item shows under **Done**. An issue's counts in **Shipped today**.
+- An agent whose name is on a `waiting_user` item shows under **Blocked on you**, not under **Working**.
+- `issue` is optional: the issue a session works on (`"acme/shop#208"`). The panel shows its number.
+- `background` is optional. `true` means the session's turn ended and work it started still runs.
+  The panel shows "background work", and never calls that agent stalled.
 - `activity` and `toolCalls` are optional. `activity` is the name of the tool the agent called last
   (`""` while it thinks). `toolCalls` counts its tool calls so far: the app draws the strip from
   how much it grows. With neither, the pulse and the strip follow `lastHeartbeat` alone.
@@ -206,7 +224,9 @@ A snapshot takes more options:
 
 ## Limits
 
-- A permission prompt stays under **Waiting on you** until that session's next tool call.
+- A permission prompt stays under **Blocked on you** until that session's next tool call.
+- A session whose turn ended (🔴, 🔵, 🟢) needs Jig 0.15.0 or newer. With an older Jig, it is not on the panel.
+- **Shipped today** counts by this Mac's day. The status file holds the last 24 hours.
 - The strip starts empty when the app starts. It fills as the app watches.
 - Jig has no failed state yet, so **failed** is 0 with Jig's own data.
 - The app is not notarized. A Mac that did not build it will refuse to open it. Homebrew and

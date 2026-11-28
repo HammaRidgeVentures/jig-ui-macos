@@ -119,7 +119,7 @@ final class StatusStore: ObservableObject {
                      "Drop the old session cookie", "Cut the weekly report query time", "Add bulk edit to the orders table",
                      "Sync stock every 5 minutes", "Warm the cache after a deploy", "Check every form for a label", "Tidy the 404 page"]
         var index = 0
-        while Board(copy, now: now, idleSince: now).workers.count < workers, index < names.count {
+        while Board(copy, now: now).workers.count < workers, index < names.count {
             let id = "sample:\(index)"
             let stalled = index % 7 == 4
             copy.items.append(.init(id: id, title: tasks[index], kind: .task, state: .working, agent: names[index],

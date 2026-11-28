@@ -31,9 +31,10 @@ enum Snapshot {
             var file = try StatusStore.load(value("--source").map { DataSource.file($0) } ?? .sample)
             if value("--source") != nil { file = file.moved(to: Date()) }
             if arguments.contains("--clear") {
-                let gone = Set(file.items.filter { $0.state == .waitingUser }.map(\.id))
-                file.items.removeAll { gone.contains($0.id) }
-                file.agents.removeAll { $0.currentItemId.map(gone.contains) ?? false }
+                let waits = file.items.filter { $0.state == .waitingUser }
+                let gone = Set(waits.map(\.id)), names = Set(waits.compactMap(\.agent))
+                file.items.removeAll { gone.contains($0.id) || ($0.agent.map(names.contains) ?? false) }
+                file.agents.removeAll { names.contains($0.name) }
             }
             if let count = value("--agents").flatMap({ Int($0) }) {
                 file = StatusStore.enliven(StatusStore.crowded(file, workers: count, at: Date()), at: Date())

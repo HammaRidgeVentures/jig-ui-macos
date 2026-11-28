@@ -10,21 +10,36 @@ func check<T: Equatable>(_ name: String, _ want: T, _ got: T) {
 let data = try Data(contentsOf: URL(fileURLWithPath: "mock/status.json"))
 let file = try StatusFile.decode(data)
 let now = file.updatedAt
-let idle = now.addingTimeInterval(-5 * 60)
-let board = Board(file, now: now, idleSince: idle)
+var utc = Calendar(identifier: .gregorian)
+utc.timeZone = TimeZone(identifier: "UTC")!
+let board = Board(file, now: now, calendar: utc)
 
-check("the sample decodes: items", 17, file.items.count)
-check("the sample decodes: agents", 5, file.agents.count)
-check("waiting: every waiting item counts", 4, board.waitingCount)
-check("waiting: the top three, longest wait first", ["session:a1", "acme/shop#212", "session:c3"], board.waiting.map(\.id))
-check("waiting: a kind comes through", .approval, board.waiting[0].kind)
-check("working: an agent that waits on the owner is left out", ["feeds", "site", "shop 2"], board.workers.map(\.name))
-check("working: a heartbeat older than 10 minutes is stalled", [true, false, false], board.workers.map(\.stalled))
+check("the sample decodes: items", 20, file.items.count)
+check("the sample decodes: agents", 6, file.agents.count)
+check("blocked: the sessions that wait, longest wait first", ["session:a1", "session:c3"], board.blocked.map(\.id))
+check("blocked: a kind comes through", .approval, board.blocked[0].kind)
+check("blocked: the session's name and its issue", "shop · #210", board.blocked[0].origin)
+check("blocked: a session with no issue has its name only", "docs", board.blocked[1].origin)
+check("decisions: the issues that wait, outside every session", 2, board.decisions)
+check("waiting: the blocked sessions and the decisions", 4, board.waitingCount)
+check("working: an agent that waits on the owner is left out", ["feeds", "site", "news", "shop 2"], board.workers.map(\.name))
+check("working: a heartbeat older than 10 minutes is stalled", [true, false, false, false], board.workers.map(\.stalled))
 check("working: the task is the agent's item", "Speed up the pricing page", board.workers[1].task)
-check("running: the agents at work that are not stalled", 2, board.running)
-check("footer: queued", 5, board.queued)
-check("footer: done counts only since idle started", 3, board.done)
+check("working: an agent on an issue shows its number", "#208 · Fix the cart total when a coupon is removed", board.workers[3].line)
+check("working: a session with no issue shows its title", "Nightly import of supplier feeds", board.workers[0].line)
+check("working: a session whose turn ended works in the background", [false, false, true, false], board.workers.map(\.background))
+check("working: background work is never stalled", .steady, board.workers[2].pulse(at: now.addingTimeInterval(3600)))
+check("running: the agents at work that are not stalled", 3, board.running)
+check("done: the sessions that wait to be archived", ["session:g7"], board.finished.map(\.id))
+check("footer: to do", 5, board.queued)
+check("footer: shipped counts the issues closed today, not the sessions", 4, board.shipped)
 check("footer: failed", 1, board.failed)
+check("issue: a short number", "#42", Board.shortIssue("acme/shop#42"))
+check("issue: a session is no issue", true, Board.shortIssue("session:a1") == nil && Board.shortIssue(nil) == nil && Board.shortIssue("sample:3") == nil)
+let yesterday = StatusFile(updatedAt: now, items: [.init(id: "a/b#1", title: "t", kind: .task, state: .done, completedAt: now.addingTimeInterval(-20 * 3600))], agents: [])
+check("footer: an issue closed yesterday is not shipped today", 0, Board(yesterday, now: now, calendar: utc).shipped)
+let older = StatusFile(updatedAt: now, items: [.init(id: "session:x", title: "Pick one", kind: .question, state: .waitingUser, agent: "shop")], agents: [.init(name: "shop", currentItemId: "session:x", lastHeartbeat: now)])
+check("an older writer's waiting session is blocked", [1, 0, 0], [Board(older, now: now).blocked.count, Board(older, now: now).decisions, Board(older, now: now).workers.count])
 check("fresh data is not stale", false, board.isStale(now: now))
 check("data older than 2 minutes is stale", true, board.isStale(now: now.addingTimeInterval(121)))
 
@@ -32,7 +47,7 @@ let later = now.addingTimeInterval(3600)
 let moved = file.moved(to: later)
 check("moved: updatedAt is now", later, moved.updatedAt)
 check("moved: a wait is as long as before", 42 * 60, Int(later.timeIntervalSince(moved.items[0].waitingSince!)))
-check("moved: the board is the same", board.workers.map(\.stalled), Board(moved, now: later, idleSince: later.addingTimeInterval(-300)).workers.map(\.stalled))
+check("moved: the board is the same", board.workers.map(\.stalled), Board(moved, now: later).workers.map(\.stalled))
 
 check("elapsed: seconds", "45s", Elapsed.short(45))
 check("elapsed: minutes", "12m", Elapsed.short(12 * 60 + 9))
@@ -46,28 +61,42 @@ check("pulse: 2 minutes ago is steady", .steady, Board.Pulse(heartbeat: now.addi
 check("pulse: 5 minutes ago is quiet", .quiet, Board.Pulse(heartbeat: now.addingTimeInterval(-300), now: now))
 check("pulse: 11 minutes ago is stalled", .stalled, Board.Pulse(heartbeat: now.addingTimeInterval(-660), now: now))
 check("pulse: no heartbeat is steady", .steady, Board.Pulse(heartbeat: nil, now: now))
-check("pulse: a worker carries its heartbeat", .active, board.workers[2].pulse(at: now))
+check("pulse: a worker carries its heartbeat", .active, board.workers[3].pulse(at: now))
 check("action: a tool's name in plain words", "running a command", Activity.words(for: "Bash"))
 check("action: no tool is thinking", "thinking", Activity.words(for: ""))
 check("action: a browser tool", "using the browser", Activity.words(for: "mcp__claude-in-chrome__navigate"))
 check("action: another connector tool", "using a tool", Activity.words(for: "mcp__github__list_issues"))
 check("action: not known stays nil", true, Activity.words(for: nil) == nil)
-check("action: the sample's worker has one", "editing files", board.workers[2].action)
+check("action: the sample's worker has one", "editing files", board.workers[3].action)
 
-// How many agents fit.
-func crowd(_ workers: Int, waiting: Int) -> Board {
+// How the lists share the panel's room.
+func crowd(_ workers: Int, blocked: Int = 0, done: Int = 0) -> Board.Layout {
     let agents = (0..<workers).map { StatusFile.Agent(name: "a\($0)", lastHeartbeat: now) }
-    let waits = (0..<waiting).map { StatusFile.Item(id: "w\($0)", title: "?", kind: .question, state: .waitingUser) }
-    return Board(StatusFile(updatedAt: now, items: waits, agents: agents), now: now, idleSince: now)
+    let waits = (0..<blocked).map { StatusFile.Item(id: "session:w\($0)", title: "?", kind: .question, state: .waitingUser) }
+    let ended = (0..<done).map { StatusFile.Item(id: "session:d\($0)", title: "t", kind: .task, state: .done, completedAt: now) }
+    return Board(StatusFile(updatedAt: now, items: waits + ended, agents: agents), now: now).layout()
 }
-check("density: four agents get full rows", .full, crowd(4, waiting: 2).density)
-check("density: five get full rows when nothing waits", .full, crowd(5, waiting: 0).density)
-check("density: five are medium beside a waiting list", .medium, crowd(5, waiting: 1).density)
-check("density: six are medium beside a waiting list", .medium, crowd(6, waiting: 3).density)
-check("density: seven are compact beside a waiting list", .compact, crowd(7, waiting: 3).density)
-check("density: eight are medium when nothing waits", .medium, crowd(8, waiting: 0).density)
-check("density: twelve are compact", .compact, crowd(12, waiting: 3).density)
-check("density: compact shows up to sixteen", 16, Board.Density.compact.limit)
+func layout(_ blocked: Int, _ density: Board.Density, _ workers: Int, _ finished: Int) -> Board.Layout {
+    Board.Layout(blocked: blocked, density: density, workers: workers, finished: finished)
+}
+check("layout: five agents alone get full rows", layout(0, .full, 5, 0), crowd(5))
+check("layout: six are over the limit for full rows", layout(0, .medium, 6, 0), crowd(6))
+check("layout: eight are medium", layout(0, .medium, 8, 0), crowd(8))
+check("layout: nine are a grid", layout(0, .compact, 9, 0), crowd(9))
+check("layout: the blocked list shows three at most", layout(3, .full, 2, 0), crowd(2, blocked: 5))
+check("layout: four agents keep full rows beside two blocked and one done", layout(2, .full, 4, 1), crowd(4, blocked: 2, done: 1))
+check("layout: the done list shows two at most", layout(0, .full, 3, 2), crowd(3, done: 6))
+check("layout: a done row is worth one step down for the agents", layout(3, .medium, 4, 1), crowd(4, blocked: 3, done: 1))
+check("layout: the done list gives way before the agents go to a grid", layout(3, .medium, 6, 0), crowd(6, blocked: 3, done: 2))
+check("layout: in a grid there is room for done again", layout(3, .compact, 9, 2), crowd(9, blocked: 3, done: 2))
+check("layout: sixteen agents fit the grid when nothing is blocked", layout(0, .compact, 16, 2), crowd(16, done: 2))
+check("layout: more agents than the room holds are cut, and done gives way", layout(3, .compact, 14, 0), crowd(20, blocked: 4, done: 2))
+check("layout: compact shows up to sixteen", 16, Board.Density.compact.limit)
+check("layout: the room on a display 900 points high", 647, Int(Board.Layout.room(height: 900, scale: 900.0 / 980)))
+let eight = Board(StatusFile(updatedAt: now, items: (0..<2).map { .init(id: "session:w\($0)", title: "?", kind: .question, state: .waitingUser) },
+                             agents: (0..<8).map { .init(name: "a\($0)", lastHeartbeat: now) }), now: now)
+check("layout: eight agents beside two blocked are medium on a tall display", .medium, eight.layout().density)
+check("layout: on a small display they are a grid", .compact, eight.layout(room: Board.Layout.room(height: 800, scale: 0.85)).density)
 
 // The history of tool calls.
 func one(_ calls: Int?, beat: TimeInterval = 0) -> StatusFile {
@@ -98,7 +127,7 @@ let oddFile = try StatusFile.decode(Data(odd.utf8))
 check("a time with fractions reads", true, oddFile.updatedAt > Date(timeIntervalSince1970: 0))
 check("an unknown kind and state read as other", [StatusFile.Kind.other.rawValue, StatusFile.State.other.rawValue], [oddFile.items[0].kind.rawValue, oddFile.items[0].state.rawValue])
 check("a missing optional key is nil", true, oddFile.agents[0].lastHeartbeat == nil && oddFile.items[0].agent == nil)
-check("an agent with no item shows a dash", "—", Board(oddFile, now: oddFile.updatedAt, idleSince: oddFile.updatedAt).workers[0].task)
+check("an agent with no item shows a dash", "—", Board(oddFile, now: oddFile.updatedAt).workers[0].task)
 
 print("\(passed) passed, \(failed) failed")
 exit(failed == 0 ? 0 : 1)

@@ -175,7 +175,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func showAgents(_ status: StatusFile?) {
         let now = Date()
         guard let status else { icon?.update(running: nil, waiting: nil); return }
-        let board = Board(status, now: now, idleSince: now)
+        let board = Board(status, now: now)
         // Old data says nothing about now: show the icon at rest.
         if board.isStale(now: now) { icon?.update(running: nil, waiting: nil); return }
         icon?.update(running: board.running, waiting: board.waitingCount)

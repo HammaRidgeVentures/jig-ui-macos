@@ -12,17 +12,20 @@ public struct StatusFile: Decodable, Equatable {
         public var kind: Kind
         public var state: State
         public var agent: String?
+        /// The issue a session's own item works on: "owner/name#42". Nil: none, or the item is an issue.
+        public var issue: String?
         public var startedAt: Date?
         public var waitingSince: Date?
         public var completedAt: Date?
 
-        public init(id: String, title: String, kind: Kind, state: State, agent: String? = nil,
+        public init(id: String, title: String, kind: Kind, state: State, agent: String? = nil, issue: String? = nil,
                     startedAt: Date? = nil, waitingSince: Date? = nil, completedAt: Date? = nil) {
             self.id = id
             self.title = title
             self.kind = kind
             self.state = state
             self.agent = agent
+            self.issue = issue
             self.startedAt = startedAt
             self.waitingSince = waitingSince
             self.completedAt = completedAt
@@ -37,14 +40,17 @@ public struct StatusFile: Decodable, Equatable {
         public var activity: String?
         /// How many tools the agent has called so far. The screen reads the difference between two loads.
         public var toolCalls: Int?
+        /// The session's turn ended and work it started still runs. Nil reads as false.
+        public var background: Bool?
 
         public init(name: String, currentItemId: String? = nil, lastHeartbeat: Date? = nil,
-                    activity: String? = nil, toolCalls: Int? = nil) {
+                    activity: String? = nil, toolCalls: Int? = nil, background: Bool? = nil) {
             self.name = name
             self.currentItemId = currentItemId
             self.lastHeartbeat = lastHeartbeat
             self.activity = activity
             self.toolCalls = toolCalls
+            self.background = background
         }
     }
 

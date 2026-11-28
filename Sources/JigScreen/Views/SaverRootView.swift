@@ -24,8 +24,9 @@ struct SaverRootView: View {
                         ClockView(now: now, scale: scale, backed: background.needsBacking)
                             .offset(drift)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        StatusPanel(board: store.status.map { Board($0, now: now, idleSince: session.idleSince) },
-                                    log: store.log, problem: store.problem, now: now, scale: scale, backed: background.needsBacking)
+                        StatusPanel(board: store.status.map { Board($0, now: now) },
+                                    log: store.log, problem: store.problem, now: now, scale: scale, backed: background.needsBacking,
+                                    room: Board.Layout.room(height: geo.size.height, scale: scale))
                             .offset(x: -drift.width, y: -drift.height)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     }
@@ -51,13 +52,18 @@ enum Drift {
     }
 }
 
-/// The colors of the screen. It is white on dark. Amber shows only when something waits on the owner.
+/// The colors of the screen. It is white on dark. The three session colors are the three session
+/// lights: red is blocked on the owner, blue is working, green is done. Amber marks an issue that
+/// waits on the owner. A count of zero has no color.
 enum Ink {
     static let primary = Color.white
     static let secondary = Color.white.opacity(0.74)
     static let label = Color.white.opacity(0.66)
     static let amber = Color(red: 1.0, green: 0.70, blue: 0.0)
-    static let stalled = Color(red: 1.0, green: 0.33, blue: 0.29)
+    static let blocked = Color(red: 1.0, green: 0.36, blue: 0.32)
+    static let working = Color(red: 0.42, green: 0.72, blue: 1.0)
+    static let done = Color(red: 0.36, green: 0.86, blue: 0.52)
+    static let stalled = blocked
 }
 
 /// The backing behind text. Over a photo it is dark enough for white text to pass WCAG AA

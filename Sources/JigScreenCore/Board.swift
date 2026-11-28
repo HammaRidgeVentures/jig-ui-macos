@@ -1,11 +1,32 @@
 import Foundation
 
 /// What the panel shows, worked out from a status file at one moment.
+///
+/// It sorts every session into one of three: blocked on the owner, working, or done. Then it
+/// counts the issues outside the sessions: the ones that wait on the owner, the ones to do,
+/// and the ones shipped today.
 public struct Board: Equatable {
+    /// A session that is blocked on the owner: at a question, a plan or a permission prompt,
+    /// or stopped with an ask.
     public struct Wait: Equatable, Identifiable {
         public var id: String
         public var title: String
         public var kind: StatusFile.Kind
+        public var since: Date?
+        /// The session's name. Nil: not known.
+        public var agent: String?
+        /// The issue the session works on, short: "#42". Nil: none.
+        public var issue: String?
+
+        /// The small line under the title: "shop · #42".
+        public var origin: String { [agent, issue].compactMap { $0 }.joined(separator: " · ") }
+    }
+
+    /// A session that is done and waits to be archived.
+    public struct Finished: Equatable, Identifiable {
+        public var id: String
+        public var title: String
+        public var agent: String?
         public var since: Date?
     }
 
@@ -18,9 +39,16 @@ public struct Board: Equatable {
         public var heartbeat: Date?
         /// What the agent is doing now, in plain words: "running a command". Nil: not known.
         public var action: String?
+        /// The issue the agent works on, short: "#42". Nil: the session has no issue.
+        public var issue: String?
+        /// Its turn ended and work it started still runs. It calls no tool, so it has no heartbeat.
+        public var background: Bool = false
+
+        /// The task with its issue in front: "#42 · Fix the cart total".
+        public var line: String { issue.map { "\($0) · \(task)" } ?? task }
 
         /// How lively the agent is at `now`. The screen's pulse follows it.
-        public func pulse(at now: Date) -> Pulse { Pulse(heartbeat: heartbeat, now: now) }
+        public func pulse(at now: Date) -> Pulse { background ? .steady : Pulse(heartbeat: heartbeat, now: now) }
     }
 
     /// How long ago an agent last called a tool, as four steps.
@@ -49,22 +77,46 @@ public struct Board: Equatable {
     /// The panel dims when the data is older than this.
     public static let staleAfter: TimeInterval = 2 * 60
 
-    public var waitingCount: Int
-    /// The three that have waited longest.
-    public var waiting: [Wait]
+    /// The sessions blocked on the owner, longest wait first.
+    public var blocked: [Wait]
     public var workers: [Worker]
+    /// The sessions that are done, newest first.
+    public var finished: [Finished]
+    /// Issues that wait on the owner, outside every session.
+    public var decisions: Int
+    /// Issues an agent can take.
     public var queued: Int
-    /// Done since the owner went idle.
-    public var done: Int
+    /// Issues closed today, by the calendar's day.
+    public var shipped: Int
     public var failed: Int
     public var updatedAt: Date
 
-    public init(_ status: StatusFile, now: Date, idleSince: Date) {
+    /// Everything that waits on the owner: the blocked sessions and the issues.
+    public var waitingCount: Int { blocked.count + decisions }
+
+    /// "owner/name#42" → "#42". Nil for an id that is no issue.
+    public static func shortIssue(_ id: String?) -> String? {
+        guard let id, !id.hasPrefix("session:"), let hash = id.lastIndex(of: "#"),
+              !id[id.index(after: hash)...].isEmpty, id[id.index(after: hash)...].allSatisfy(\.isNumber) else { return nil }
+        return String(id[hash...])
+    }
+
+    /// An item that is a session, not an issue: Jig gives it the id "session:<id>", and only a
+    /// session's waiting or done item names an agent.
+    private static func isSession(_ item: StatusFile.Item) -> Bool {
+        item.id.hasPrefix("session:") || item.agent != nil
+    }
+
+    public init(_ status: StatusFile, now: Date, calendar: Calendar = .current) {
         let waits = status.items
             .filter { $0.state == .waitingUser }
             .sorted { ($0.waitingSince ?? .distantFuture) < ($1.waitingSince ?? .distantFuture) }
-        waitingCount = waits.count
-        waiting = waits.prefix(3).map { Wait(id: $0.id, title: $0.title, kind: $0.kind, since: $0.waitingSince) }
+        let sessionWaits = waits.filter(Board.isSession)
+        blocked = sessionWaits.map {
+            Wait(id: $0.id, title: $0.title, kind: $0.kind, since: $0.waitingSince, agent: $0.agent,
+                 issue: Board.shortIssue($0.issue))
+        }
+        decisions = waits.count - sessionWaits.count
 
         // An agent that waits on the owner is not working: it shows above, not here.
         let waitingAgents = Set(waits.compactMap(\.agent))
@@ -73,17 +125,27 @@ public struct Board: Equatable {
             .filter { !waitingAgents.contains($0.name) }
             .map { agent in
                 let item = agent.currentItemId.flatMap { byID[$0] }
-                let stalled = agent.lastHeartbeat.map { now.timeIntervalSince($0) > Board.stallAfter } ?? false
+                let background = agent.background ?? false
+                let heartbeat = background ? nil : agent.lastHeartbeat
+                let stalled = heartbeat.map { now.timeIntervalSince($0) > Board.stallAfter } ?? false
                 return Worker(name: agent.name, task: item?.title ?? "—", since: item?.startedAt, stalled: stalled,
-                              heartbeat: agent.lastHeartbeat, action: Activity.words(for: agent.activity))
+                              heartbeat: heartbeat, action: Activity.words(for: agent.activity),
+                              issue: Board.shortIssue(agent.currentItemId), background: background)
             }
             .sorted { a, b in
                 if a.stalled != b.stalled { return a.stalled }
                 return (a.since ?? .distantFuture) < (b.since ?? .distantFuture)
             }
 
+        let done = status.items.filter { $0.state == .done }
+        finished = done.filter(Board.isSession)
+            .sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }
+            .map { Finished(id: $0.id, title: $0.title, agent: $0.agent, since: $0.completedAt) }
+        shipped = done.filter { item in
+            !Board.isSession(item) && item.completedAt.map { calendar.isDate($0, inSameDayAs: now) } ?? false
+        }.count
+
         queued = status.items.filter { $0.state == .queued }.count
-        done = status.items.filter { $0.state == .done && ($0.completedAt ?? .distantPast) >= idleSince }.count
         failed = status.items.filter { $0.state == .failed }.count
         updatedAt = status.updatedAt
     }
@@ -105,14 +167,84 @@ public struct Board: Equatable {
             case .compact: return 16
             }
         }
+
+        /// The height of `count` agents at this density, in points before scaling.
+        func height(of count: Int) -> Double {
+            switch self {
+            case .full: return Double(count) * Layout.fullRow
+            case .medium: return Double(count) * Layout.mediumRow
+            case .compact: return Double((count + 1) / 2) * Layout.gridRow
+            }
+        }
     }
 
-    /// The density for this many agents. A waiting list takes room, so each step comes sooner beside one:
-    /// full rows for up to 4 agents (5 with nothing waiting), two-line rows up to 6 (8), then the grid.
-    public var density: Density {
-        let waiting = waitingCount > 0
-        if workers.count <= (waiting ? 4 : 5) { return .full }
-        return workers.count <= (waiting ? 6 : 8) ? .medium : .compact
+    /// How many rows of each list the panel shows, so the whole panel fits the display.
+    /// The lists take room in the owner's order: blocked first, then working, then done.
+    public struct Layout: Equatable {
+        public var blocked: Int
+        public var density: Density
+        public var workers: Int
+        public var finished: Int
+
+        public init(blocked: Int, density: Density, workers: Int, finished: Int) {
+            self.blocked = blocked
+            self.density = density
+            self.workers = workers
+            self.finished = finished
+        }
+
+        /// The room for the three lists on a display 900 points high, in points before scaling.
+        public static let room = 640.0
+
+        /// The room for the three lists on a display of this height, drawn at this scale.
+        /// The panel is as tall as the display less its margins (88). The counts on top, the
+        /// footer and the padding take 215. 30 more stay free, for a title that runs long.
+        /// Every number here and below is measured from a drawn panel.
+        public static func room(height: Double, scale: Double) -> Double { height / scale - 333 }
+        /// A list's heading, with the gap and the rule above it.
+        static let heading = 60.0
+        /// The blocked list sits right under the counts, with no rule.
+        static let blockedHeading = 41.0
+        /// A blocked row at its tallest: a title of two lines, then the session's name.
+        static let blockedRow = 68.0
+        static let fullRow = 74.0
+        static let mediumRow = 50.0
+        static let gridRow = 41.0
+        static let finishedRow = 29.0
+        static let moreLine = 24.0
+    }
+
+    public func layout(room: Double = Layout.room) -> Layout {
+        let shownBlocked = min(3, blocked.count)
+        var room = room
+        if shownBlocked > 0 {
+            room -= Layout.blockedHeading + Double(shownBlocked) * Layout.blockedRow
+            if blocked.count > shownBlocked { room -= Layout.moreLine }
+        }
+        room -= Layout.heading  // "Working" always shows, with a line when nobody works.
+
+        // Do these agents fit at this density, beside `rows` done rows?
+        func fits(_ density: Density, _ rows: Int) -> Bool {
+            guard workers.count <= density.limit else { return false }
+            var left = room - density.height(of: workers.count)
+            if rows > 0 {
+                left -= Layout.heading + Double(rows) * Layout.finishedRow
+                if finished.count > rows { left -= Layout.moreLine }
+            }
+            return left >= 0
+        }
+        // Working comes before done, so the done list gives way first. One step is fair the other
+        // way: a two-line agent row beside a done row beats a three-line row and no done row.
+        let wanted = min(2, finished.count)
+        let order: [(Density, Int)] = [(.full, 2), (.full, 1), (.medium, 2), (.medium, 1), (.full, 0), (.medium, 0),
+                                       (.compact, 2), (.compact, 1), (.compact, 0)]
+        for (density, rows) in order where rows <= wanted && fits(density, rows) {
+            return Layout(blocked: shownBlocked, density: density, workers: workers.count, finished: rows)
+        }
+        // Too many agents for the room: a grid of what fits, and a "+ N more" line.
+        let rows = max(1, Int((room - Layout.moreLine) / Layout.gridRow))
+        return Layout(blocked: shownBlocked, density: .compact,
+                      workers: min(workers.count, rows * 2, Density.compact.limit), finished: 0)
     }
 
     /// Agents at work whose heartbeat is fresh.

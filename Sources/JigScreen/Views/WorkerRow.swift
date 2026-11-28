@@ -39,7 +39,7 @@ struct WorkerRow: View {
                 }
                 HStack(alignment: .center, spacing: size(9)) {
                     ActivityStrip(bars: bars, pulse: pulse, scale: scale, height: 13)
-                    Text(worker.task)
+                    Text(worker.line)
                         .font(.system(size: size(14)))
                         .foregroundStyle(Ink.secondary)
                         .lineLimit(1)
@@ -106,7 +106,7 @@ struct WorkerRow: View {
                         .monospacedDigit()
                         .foregroundStyle(Ink.secondary)
                 }
-                Text(worker.task)
+                Text(worker.line)
                     .font(.system(size: size(15)))
                     .foregroundStyle(Ink.secondary)
                     .lineLimit(1)
@@ -125,6 +125,7 @@ struct WorkerRow: View {
 
     /// The words beside the strip: what the agent does now, or how long it has been still.
     private func doing(_ pulse: Board.Pulse) -> String {
+        if worker.background { return "background work" }
         switch pulse {
         case .active: return worker.action ?? "working"
         // A long gap after a tool call is a long step, or the model at work on its answer.
@@ -217,22 +218,45 @@ struct ActivityStrip: View {
     }
 }
 
-/// The big count under "Waiting on you". Above zero it is amber and breathes slowly, to catch the eye from far off.
-struct WaitingCount: View {
+/// One of the three counts on top of the panel: a big number on a tile, with its label under it.
+/// Above zero the tile takes its color. At zero it is dim, so color on the panel always means
+/// something is there. The blocked tile breathes slowly, to catch the eye from far off.
+struct CountTile: View {
     let count: Int
+    let label: String
+    let color: Color
+    let breathes: Bool
     let scale: CGFloat
     @Environment(\.accessibilityReduceMotion) private var still
 
     var body: some View {
         let some = count > 0
-        TimelineView(.animation(minimumInterval: 1.0 / 20, paused: !some || still)) { timeline in
-            let breath = some && !still ? 0.5 + 0.5 * sin(2 * .pi * timeline.date.timeIntervalSinceReferenceDate / 3.2) : 1
-            Text("\(count)")
-                .font(.system(size: 84 * scale, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(some ? Ink.amber.opacity(0.82 + 0.18 * breath) : Color.white.opacity(0.4))
-                .shadow(color: some ? Ink.amber.opacity(0.10 + 0.30 * breath) : .clear, radius: 22 * scale)
-                .frame(height: 84 * scale)
+        let moving = some && breathes && !still
+        TimelineView(.animation(minimumInterval: 1.0 / 20, paused: !moving)) { timeline in
+            let breath = moving ? 0.5 + 0.5 * sin(2 * .pi * timeline.date.timeIntervalSinceReferenceDate / 3.2) : 0.5
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(count)")
+                    .font(.system(size: 54 * scale, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(some ? color : Color.white.opacity(0.4))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .frame(height: 56 * scale)
+                Text(label.uppercased())
+                    .font(.system(size: 12 * scale, weight: .bold))
+                    .tracking(1.2 * scale)
+                    .foregroundStyle(some ? color : Ink.label)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 12 * scale)
+            .padding(.vertical, 9 * scale)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12 * scale, style: .continuous)
+                    .fill(some ? color.opacity(0.13 + 0.12 * breath) : Color.white.opacity(0.05))
+            )
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(count) \(label)")
     }
 }
